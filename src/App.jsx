@@ -97,6 +97,11 @@ export default function App() {
   const [loadError, setLoadError] = useState("")
   const [history, setHistory] = useState([])
   const [bgBusy, setBgBusy] = useState(false)
+  const [pinRequired, setPinRequired] = useState(null)
+  const [pin, setPin] = useState("")
+  const [pinInput, setPinInput] = useState("")
+  const [pinError, setPinError] = useState("")
+  const [pinChecking, setPinChecking] = useState(false)
 
   const usedRef = useRef({})
   const seenTitlesRef = useRef(new Set())
@@ -110,8 +115,60 @@ export default function App() {
       if (t && TONES.find(x => x.id === t)) setTone(t)
       const tim = localStorage.getItem("ttmc-timer")
       if (tim === "1") setTimerEnabled(true)
+      const savedPin = localStorage.getItem("ttmc-pin")
+      if (savedPin) setPin(savedPin)
     } catch (e) {}
   }, [])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/config")
+        const data = await r.json()
+        setPinRequired(!!data.pinRequired)
+        if (data.pinRequired && pin) {
+          const check = await fetch("/api/check-pin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pin })
+          })
+          if (!check.ok) { setPin(""); try { localStorage.removeItem("ttmc-pin") } catch (e) {} }
+        }
+      } catch (e) {
+        setPinRequired(false)
+      }
+    })()
+  }, [])
+
+  async function submitPin() {
+    const v = pinInput.trim()
+    if (!v) return
+    setPinChecking(true); setPinError("")
+    try {
+      const r = await fetch("/api/check-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: v })
+      })
+      if (r.ok) {
+        setPin(v)
+        try { localStorage.setItem("ttmc-pin", v) } catch (e) {}
+        setPinInput("")
+      } else {
+        setPinError("PIN incorrect")
+      }
+    } catch (e) {
+      setPinError("Serveur injoignable")
+    } finally {
+      setPinChecking(false)
+    }
+  }
+
+  function apiHeaders() {
+    const h = { "Content-Type": "application/json" }
+    if (pin) h["X-PIN"] = pin
+    return h
+  }
 
   useEffect(() => { try { localStorage.setItem("ttmc-tone", tone) } catch (e) {} }, [tone])
   useEffect(() => { try { localStorage.setItem("ttmc-timer", timerEnabled ? "1" : "0") } catch (e) {} }, [timerEnabled])
@@ -120,9 +177,10 @@ export default function App() {
   async function fetchThemes(count, existingThemes) {
     const r = await fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify({ count, tone, existingThemes })
     })
+    if (r.status === 401) { setPin(""); try { localStorage.removeItem("ttmc-pin") } catch (e) {} ; throw new Error("PIN invalide") }
     if (!r.ok) throw new Error("HTTP " + r.status)
     const data = await r.json()
     if (!data.themes?.length) throw new Error("Aucun thème généré")
@@ -264,7 +322,7 @@ export default function App() {
     try {
       const r = await fetch("/api/judge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders(),
         body: JSON.stringify({ question: cq.q, expected: cq.a, answer: userA })
       })
       const v = await r.json()
@@ -332,6 +390,40 @@ export default function App() {
   const sP = { minHeight: "100dvh", fontFamily: FB, color: "var(--tx)", background: "var(--bg)" }
   const sC = { maxWidth: 440, margin: "0 auto", padding: "0 20px" }
   const sK = { background: "var(--sf)", borderRadius: 20, padding: "24px 22px", boxShadow: "0 1px 3px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.025)", border: "1px solid var(--bd)" }
+
+  /* ================== PIN GATE ================== */
+  if (pinRequired === true && !pin) return (
+    <div style={sP}>
+      <style>{globalCSS}</style>
+      <div style={sC}>
+        <div style={{textAlign:"center",padding:"80px 0 30px",animation:"fi .4s ease both"}}>
+          <div style={{fontSize:56,marginBottom:22}}>🔒</div>
+          <h2 style={{fontFamily:FH,fontWeight:800,fontSize:26,marginBottom:8}}>Accès protégé</h2>
+          <p style={{fontSize:14,color:"var(--tx2)",marginBottom:30}}>Entre le code PIN pour jouer</p>
+          <input
+            type="tel" inputMode="numeric" autoFocus placeholder="•  •  •  •"
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value.replace(/\D/g,'').slice(0,8)); setPinError("") }}
+            onKeyDown={e => { if (e.key === "Enter") submitPin() }}
+            style={{width:"100%",padding:"18px",borderRadius:14,border:"1.5px solid "+(pinError?"#F1948A":"var(--bd)"),background:"var(--sf)",fontSize:24,fontFamily:FH,fontWeight:700,textAlign:"center",letterSpacing:"0.5em",outline:"none",color:"var(--tx)",marginBottom:12}}
+          />
+          {pinError && <p style={{color:"#C0392B",fontSize:13,marginBottom:12}}>{pinError}</p>}
+          <button onClick={submitPin} disabled={!pinInput.trim() || pinChecking} style={mb(!!pinInput.trim() && !pinChecking, { opacity: pinInput.trim() && !pinChecking ? 1 : 0.4 })}>
+            {pinChecking ? "Vérification…" : "Entrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (pinRequired === null) return (
+    <div style={sP}>
+      <style>{globalCSS}</style>
+      <div style={{...sC, textAlign:"center", padding:"120px 0"}}>
+        <div style={{fontSize:40}} className="pulse">⏳</div>
+      </div>
+    </div>
+  )
 
   /* ================== HOME ================== */
   if (step === "home") return (

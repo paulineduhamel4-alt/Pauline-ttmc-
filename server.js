@@ -1,12 +1,17 @@
 import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import Anthropic from '@anthropic-ai/sdk'
 import 'dotenv/config'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 3001
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001'
 const JUDGE_MODEL = process.env.ANTHROPIC_JUDGE_MODEL || MODEL
+const APP_PIN = (process.env.APP_PIN || '').trim()
+const IS_PROD = process.env.NODE_ENV === 'production'
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error('\n❌ ANTHROPIC_API_KEY manquante. Crée un fichier .env (voir .env.example)\n')
@@ -17,6 +22,23 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '2mb' }))
+
+/* ---------------------- PIN middleware ---------------------- */
+function requirePin(req, res, next) {
+  if (!APP_PIN) return next()
+  const pin = String(req.headers['x-pin'] || '').trim()
+  if (pin === APP_PIN) return next()
+  res.status(401).json({ error: 'pin_required' })
+}
+
+app.get('/api/config', (_, res) => res.json({ pinRequired: !!APP_PIN }))
+
+app.post('/api/check-pin', (req, res) => {
+  if (!APP_PIN) return res.json({ ok: true })
+  const pin = String(req.body?.pin || '').trim()
+  if (pin === APP_PIN) return res.json({ ok: true })
+  res.status(401).json({ error: 'invalid_pin' })
+})
 
 /* ---------------------- Génération de thèmes ---------------------- */
 
@@ -155,7 +177,7 @@ async function generateOne({ existingThemes, tone, attempt = 1 }) {
   }
 }
 
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', requirePin, async (req, res) => {
   const count = Math.min(Math.max(Number(req.body?.count) || 20, 1), 30)
   const existingThemes = Array.isArray(req.body?.existingThemes) ? req.body.existingThemes : []
   const tone = req.body?.tone || 'fun'
@@ -185,7 +207,7 @@ function normTitle(t) {
 
 /* ---------------------- Juge IA pour questions ouvertes ---------------------- */
 
-app.post('/api/judge', async (req, res) => {
+app.post('/api/judge', requirePin, async (req, res) => {
   const { question, expected, answer } = req.body || {}
   if (!question || !expected || answer === undefined) {
     return res.status(400).json({ error: 'question, expected, answer requis' })
@@ -224,8 +246,20 @@ Réponds par ce JSON exact :
 
 app.get('/api/health', (_, res) => res.json({ ok: true, model: MODEL }))
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Backend TTMC prêt sur http://localhost:${PORT}`)
+/* ---------------------- Serve frontend en production ---------------------- */
+if (IS_PROD) {
+  const distDir = path.join(__dirname, 'dist')
+  app.use(express.static(distDir))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next()
+    res.sendFile(path.join(distDir, 'index.html'))
+  })
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 TTMC prêt sur http://localhost:${PORT}`)
+  console.log(`   Mode       : ${IS_PROD ? 'PRODUCTION (front servi par Express)' : 'DEV (front sur Vite)'}`)
   console.log(`   Génération : ${MODEL}`)
-  console.log(`   Juge       : ${JUDGE_MODEL}\n`)
+  console.log(`   Juge       : ${JUDGE_MODEL}`)
+  console.log(`   PIN        : ${APP_PIN ? '🔒 activé' : '⚠️  désactivé (accès libre)'}\n`)
 })
