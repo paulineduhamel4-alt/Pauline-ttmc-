@@ -1,124 +1,103 @@
 # 🎯 Tu te mets combien ?
 
-Jeu de culture générale avec **génération IA à chaque partie** (Google Gemini, gratuit), **juge IA**, **explications**, **chrono**, **historique** et **PWA**.
+Jeu de culture générale entre amis. **48 thèmes, 480 questions**, chrono optionnel, gages, boosts, historique.
+
+**Zéro API, zéro clé, zéro compte.** Un simple site statique que tu peux héberger n'importe où ou même ouvrir en local.
 
 ## ✨ Features
 
-- 🤖 **20 nouveaux thèmes** générés par Gemini à chaque partie
-- 🎭 **4 ambiances** : Familial / Fun / Pointu / Adulte
-- ⚖️ **Juge IA** pour les questions ouvertes
-- 💡 **Explication** après chaque réponse
-- ⏱️ **Chrono optionnel** par question (proportionnel au niveau)
-- 🔁 **Génération en arrière-plan** pendant le jeu
+- 🎲 **48 thèmes** couvrant nature, animaux, histoire, sciences, arts, sports, pop culture
+- 💡 **Explications** après chaque réponse pour apprendre un truc
+- 📊 **Compteur de thèmes restants** — jamais deux fois le même thème dans l'ordre, remise à zéro auto une fois tous joués
+- ⏱️ **Chrono optionnel** (25s + niveau×5, plus haut le niveau = plus de temps)
+- 🎭 **Cases gage** (mimer, chanter, accent…)
+- ⚡ **Cases boost** (×2, sniper +3, vol adversaire, bouclier, rejouer)
 - 📜 **Historique local** des 20 dernières parties
-- 🔒 **PIN partagé** pour protéger l'accès
 - 📱 **PWA** : ajout à l'écran d'accueil comme une vraie app
-- 💸 **100 % gratuit** avec Gemini (dans les limites du free tier — largement suffisantes pour jouer entre potes)
 
-## 🔑 Récupérer une clé Gemini (2 min, gratuit)
-
-1. Va sur https://aistudio.google.com/app/apikey
-2. Login avec ton compte Google
-3. **Create API key** → choisis un projet (ou "Create in new project")
-4. Copie la clé (commence par `AIzaSy...`)
-
-**Aucune carte bancaire demandée**, ce n'est pas comme Claude/OpenAI. Google offre le free tier direct.
-
-Quotas free tier de `gemini-2.5-flash` (largement au-dessus de tes besoins) :
-- 10 requêtes/minute
-- 250 000 tokens/minute
-- 250 requêtes/jour
-
-Une partie = ~20-30 requêtes → tu peux enchaîner ~8 parties par jour tranquille.
-
-## 🚀 En local (dev)
+## 🚀 Lancer en local
 
 ```bash
 git clone <ce-repo>
 cd Pauline-ttmc-
-cp .env.example .env
-# → colle ta clé Gemini dans .env
 npm install
 npm run dev
 ```
 → http://localhost:5173
 
-## 📱 Déployer en ligne (pour jouer partout)
+## 📦 Build + ouvrir n'importe où
 
-**Render** — gratuit, un URL public, pas de CB.
+```bash
+npm run build
+```
+Le dossier `dist/` généré est **100 % autonome**. Trois façons de s'en servir :
 
-1. **Pousse le code sur GitHub** (merge ta branche sur `main`)
-2. **Compte Render** sur https://render.com (login GitHub)
-3. Dashboard → **New +** → **Blueprint** → sélectionne ton repo
-4. Render détecte `render.yaml` → **Apply**
-5. Remplis les 2 secrets :
-   - `GEMINI_API_KEY` : ta clé (`AIzaSy...`)
-   - `APP_PIN` : code 4-8 chiffres à partager (ex. `4242`)
-6. Attends ~5 min → URL type `https://ttmc-xxxx.onrender.com`
+**A) Ouvrir en local** — double-clic sur `dist/index.html` dans ton navigateur. Ça marche même hors ligne.
 
-### 📱 Installation PWA sur téléphone
+**B) Héberger sur Netlify Drop (gratuit, 30 secondes)** :
+1. Va sur https://app.netlify.com/drop
+2. Glisse-dépose le dossier `dist/` sur la page
+3. Tu récupères une URL du style `https://joyful-panda-1234.netlify.app`
+4. Partage-la à tes potes, chacun l'ouvre sur son tel
 
-**iPhone (Safari)** : ouvre l'URL → Partager 📤 → **Sur l'écran d'accueil**
-**Android (Chrome)** : ouvre l'URL → menu ⋮ → **Installer l'application**
+**C) N'importe quel autre hébergeur statique** — Vercel, GitHub Pages, Cloudflare Pages, Firebase Hosting. Tous gratuits pour ce type d'usage.
 
-→ Icône TTMC sur l'écran d'accueil, plein écran, comme une vraie app.
+## 📱 Installer comme une app sur le tel
 
-Partage **URL + PIN** à tes copains, ils font pareil.
+Une fois hébergé (ou ouvert en local via un serveur) :
+- **iPhone (Safari)** : ouvre l'URL → Partager 📤 → **Sur l'écran d'accueil**
+- **Android (Chrome)** : ouvre l'URL → menu ⋮ → **Installer l'application**
 
-### ⚠️ Le cold start Render (plan gratuit)
-
-Sans visiteur pendant 15 min → serveur en veille → réveil ~30-60s. Deux astuces :
-- **Ouvre l'URL 1 min avant** de commencer à jouer
-- Passe à Render "Starter" (7$/mois) si tu joues très souvent
+→ Icône TTMC sur ton écran d'accueil, plein écran, comme une vraie app.
 
 ## 🎮 Comment on joue
 
-1. **Accueil** — 2 à 8 équipes, ambiance, chrono ON/OFF
-2. **Lancer la partie** → 20 thèmes IA générés (~30s)
-3. Chaque tour : thème imposé → équipe choisit son niveau 1-10 → question
-   - Niveaux 1-5 & 8-10 : QCM (4 options)
-   - Niveaux 6-7 : réponse ouverte jugée par l'IA
-4. Bonne réponse → tu avances de N cases · Mauvaise → tu restes
-5. Cases spéciales : 🎭 **gage** (5/11/17/23/29/35/39) · ⚡ **boost** (8/15/21/28/34/40)
-6. Premier à la case **42** gagne 🏆
+1. **Accueil** — ajoute 2 à 8 équipes, active le chrono si tu veux
+2. **Lancer la partie** → 1 des 48 thèmes non-vus tombe
+3. **L'équipe choisit son niveau 1-10** (plus haut = plus dur = plus de cases si juste)
+4. La question apparaît :
+   - **Niveaux 1-5 & 8-10** → QCM (4 options)
+   - **Niveaux 6-7** → réponse libre (l'équipe se juge honnêtement)
+5. Bonne réponse → tu avances de N cases · Mauvaise → tu restes
+6. **Cases spéciales** :
+   - 🎭 **Gage** (5/11/17/23/29/35/39) — mimer, chanter, accent…
+   - ⚡ **Boost** (8/15/21/28/34/40) — ×2, sniper +3, vol adversaire…
+7. **Premier à la case 42** gagne 🏆
+
+## 📊 Le compteur de thèmes
+
+À chaque partie, les thèmes déjà joués sont **mémorisés dans ton navigateur**. Ils ne reviennent pas tant qu'il en reste d'autres. L'accueil affiche :
+- **48/48** au début → tous frais
+- **35/48** après quelques parties → 35 thèmes non vus restants
+- **0/48** → 🎉 quand tu as tout fait, la banque se remet automatiquement à zéro
+
+Tu peux forcer la remise à zéro manuellement avec le bouton **🔄 Remettre tous les thèmes à zéro** sur l'accueil.
 
 ## 🔧 Structure
 
 ```
-├── server.js              # Backend Express + Gemini SDK
 ├── src/
-│   ├── App.jsx            # Toute la logique du jeu
-│   ├── themes.js          # 11 thèmes de secours
-│   └── main.jsx           # Entrée React
-├── public/                # Icônes PWA
+│   ├── App.jsx        # Toute la logique du jeu
+│   ├── themes.js      # 48 thèmes, 480 questions
+│   └── main.jsx       # Entrée React
+├── public/            # Icônes PWA
 ├── index.html
 ├── vite.config.js
-├── render.yaml            # Config déploiement Render
-├── .env                   # GEMINI_API_KEY + APP_PIN (jamais commité)
 └── package.json
 ```
-
-## 🐛 Dépannage
-
-**"❌ GEMINI_API_KEY manquante"** — variable pas définie sur Render, ou `.env` absent en local.
-
-**Rate limit (429)** — trop de générations en peu de temps. Attends 1 min ou baisse `GEN_CONCURRENCY` dans `.env` (ex. `GEN_CONCURRENCY=4`).
-
-**Quota journalier atteint** — 250 requêtes/jour épuisées. Attends demain, ou change de modèle : `GEMINI_MODEL=gemini-2.0-flash` (quotas différents).
-
-**PIN oublié** — Render → Environment → change `APP_PIN` → save → redémarre auto.
-
-**Icône pas jolie sur iOS** — retire de l'écran d'accueil et rajoute (Safari cache).
 
 ## ⚙️ Personnalisation
 
 Dans `src/App.jsx` (haut du fichier) :
-- `BS = 42` — durée de partie
-- `INIT_GEN = 20` — thèmes générés au lancement
-- `BG_GEN = 10` — thèmes en arrière-plan
+- `BS = 42` — durée de partie (nombre de cases)
+- `ST` — emplacement des cases gage/boost
 - `timeFor(level)` — formule du chrono
 
-Dans `.env` :
-- `APP_PIN=` (vide) → désactive le PIN
-- `GEMINI_MODEL=gemini-2.5-flash-lite` → plus rapide, un poil moins précis
-- `GEN_CONCURRENCY=4` → moins de parallélisme, évite les rate limits
+Pour **ajouter tes propres thèmes**, édite `src/themes.js` en respectant le format :
+```js
+{"t": "Mon thème", "e": "🎨", "q": [
+  ["Question ?", "m", ["A","B","C","D"], 2, "Explication."],   // QCM, réponse = index 2
+  ["Question ouverte ?", "o", "Réponse attendue", "Explication."], // Ouverte
+  // ... 10 questions au total, niveau croissant de difficulté 1 à 10
+]}
+```

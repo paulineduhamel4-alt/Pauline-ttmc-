@@ -1,11 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
-import { THEMES as SEED_THEMES } from "./themes.js"
+import { THEMES } from "./themes.js"
 
 const BS = 42
-const INIT_GEN = 20
-const BG_GEN = 10
-const BG_TRIGGER = 5
-
 const PL = [
   {bg:"#C0392B",lt:"#FDEDEC"},{bg:"#2471A3",lt:"#EBF5FB"},
   {bg:"#1E8449",lt:"#EAFAF1"},{bg:"#CA6F1E",lt:"#FEF5E7"},
@@ -19,19 +15,11 @@ const ST = {}
 const GA = ["🎭 Mimez le thème 30s !","🗣️ Sans le mot principal !","🎤 Chantez sur Joyeux anniversaire !","🌍 Accent étranger !","✏️ Dessinez avec le doigt !","🙈 Yeux fermés !","🎯 Adversaire choisit niveau !","⏱️ 5 secondes max !","🔤 Épelez à l'envers !","🤫 Le + jeune seul !","👥 Tous en chœur !","🦶 Sur un pied !","📖 Anecdote d'abord !","🔇 Mots 1 syllabe !"]
 const BO = [{tx:"⚡ DOUBLE ×2 !",id:"double",lb:"×2"},{tx:"🏴‍☠️ VOL adversaire −2 !",id:"steal",lb:"🏴‍☠️"},{tx:"🔄 REJOUER si correct !",id:"replay",lb:"🔄"},{tx:"🛡️ BOUCLIER +1 même raté !",id:"shield",lb:"🛡️"},{tx:"🎯 SNIPER +3 bonus !",id:"sniper",lb:"🎯+3"}]
 
-const TONES = [
-  { id: "familial", lb: "🌈 Familial", desc: "tout public" },
-  { id: "fun",      lb: "🎉 Fun",       desc: "insolite, pop" },
-  { id: "pointu",   lb: "🧠 Pointu",    desc: "exigeant" },
-  { id: "adulte",   lb: "🔞 Adulte",    desc: "sans filtre" }
-]
-
 function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
 function pickR(a){return a[Math.floor(Math.random()*a.length)]}
-function normTitle(t){return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
 function timeFor(level){return 25 + level * 5}
 
-const globalCSS = "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}:root{--bg:#F8F7F4;--sf:#FFF;--tx:#1C1C1A;--tx2:#6E6E68;--tx3:#A8A8A2;--bd:#EAEAE5}body{background:var(--bg)}@keyframes fi{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes si{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}@keyframes pop{0%{transform:scale(.6)}50%{transform:scale(1.08)}100%{transform:scale(1)}}@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes prog{0%{background-position:0 0}100%{background-position:40px 0}}input::placeholder{color:var(--tx3)}button:active:not(:disabled){transform:scale(.97)!important}.spin{animation:spin 1s linear infinite;display:inline-block}.pulse{animation:pulse 1.5s ease-in-out infinite}"
+const globalCSS = "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}:root{--bg:#F8F7F4;--sf:#FFF;--tx:#1C1C1A;--tx2:#6E6E68;--tx3:#A8A8A2;--bd:#EAEAE5}body{background:var(--bg)}@keyframes fi{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes si{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}@keyframes pop{0%{transform:scale(.6)}50%{transform:scale(1.08)}100%{transform:scale(1)}}@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}input::placeholder{color:var(--tx3)}button:active:not(:disabled){transform:scale(.97)!important}"
 const FH = "'Playfair Display',Georgia,serif"
 const FB = "'DM Sans',system-ui,sans-serif"
 
@@ -77,7 +65,6 @@ export default function App() {
   const [step, setStep] = useState("home")
   const [teams, setTeams] = useState([])
   const [nameIn, setNameIn] = useState("")
-  const [themes, setThemes] = useState(SEED_THEMES)
   const [deck, setDeck] = useState([])
   const [ci, setCi] = useState(0)
   const [turn, setTurn] = useState(0)
@@ -88,164 +75,41 @@ export default function App() {
   const [ak, setAk] = useState(0)
   const [gageT, setGageT] = useState("")
   const [boost, setBoost] = useState(null)
-  const [tone, setTone] = useState("fun")
   const [timerEnabled, setTimerEnabled] = useState(false)
   const [timerLeft, setTimerLeft] = useState(0)
-  const [judgeLoading, setJudgeLoading] = useState(false)
-  const [judgeVerdict, setJudgeVerdict] = useState(null)
-  const [loadProgress, setLoadProgress] = useState({ pct: 0, msg: "" })
-  const [loadError, setLoadError] = useState("")
   const [history, setHistory] = useState([])
-  const [bgBusy, setBgBusy] = useState(false)
-  const [pinRequired, setPinRequired] = useState(null)
-  const [pin, setPin] = useState("")
-  const [pinInput, setPinInput] = useState("")
-  const [pinError, setPinError] = useState("")
-  const [pinChecking, setPinChecking] = useState(false)
+  const [playedCount, setPlayedCount] = useState(0)
 
   const usedRef = useRef({})
-  const seenTitlesRef = useRef(new Set())
-  const bgFiredRef = useRef(false)
+  const playedRef = useRef({})
 
   useEffect(() => {
     try {
+      const p = localStorage.getItem("ttmc-played-v2")
+      if (p) {
+        playedRef.current = JSON.parse(p)
+        setPlayedCount(Object.keys(playedRef.current).length)
+      }
       const h = localStorage.getItem("ttmc-history-v1")
       if (h) setHistory(JSON.parse(h))
-      const t = localStorage.getItem("ttmc-tone")
-      if (t && TONES.find(x => x.id === t)) setTone(t)
       const tim = localStorage.getItem("ttmc-timer")
       if (tim === "1") setTimerEnabled(true)
-      const savedPin = localStorage.getItem("ttmc-pin")
-      if (savedPin) setPin(savedPin)
     } catch (e) {}
   }, [])
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/config")
-        const data = await r.json()
-        setPinRequired(!!data.pinRequired)
-        if (data.pinRequired && pin) {
-          const check = await fetch("/api/check-pin", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pin })
-          })
-          if (!check.ok) { setPin(""); try { localStorage.removeItem("ttmc-pin") } catch (e) {} }
-        }
-      } catch (e) {
-        setPinRequired(false)
-      }
-    })()
-  }, [])
-
-  async function submitPin() {
-    const v = pinInput.trim()
-    if (!v) return
-    setPinChecking(true); setPinError("")
-    try {
-      const r = await fetch("/api/check-pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: v })
-      })
-      if (r.ok) {
-        setPin(v)
-        try { localStorage.setItem("ttmc-pin", v) } catch (e) {}
-        setPinInput("")
-      } else {
-        setPinError("PIN incorrect")
-      }
-    } catch (e) {
-      setPinError("Serveur injoignable")
-    } finally {
-      setPinChecking(false)
-    }
-  }
-
-  function apiHeaders() {
-    const h = { "Content-Type": "application/json" }
-    if (pin) h["X-PIN"] = pin
-    return h
-  }
-
-  useEffect(() => { try { localStorage.setItem("ttmc-tone", tone) } catch (e) {} }, [tone])
   useEffect(() => { try { localStorage.setItem("ttmc-timer", timerEnabled ? "1" : "0") } catch (e) {} }, [timerEnabled])
 
-  /* --------- Génération de thèmes --------- */
-  async function fetchThemes(count, existingThemes) {
-    const r = await fetch("/api/generate", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({ count, tone, existingThemes })
-    })
-    if (r.status === 401) { setPin(""); try { localStorage.removeItem("ttmc-pin") } catch (e) {} ; throw new Error("PIN invalide") }
-    if (!r.ok) throw new Error("HTTP " + r.status)
-    const data = await r.json()
-    if (!data.themes?.length) throw new Error("Aucun thème généré")
-    return data.themes
+  function markPlayed(name) {
+    if (playedRef.current[name]) return
+    playedRef.current[name] = true
+    setPlayedCount(Object.keys(playedRef.current).length)
+    try { localStorage.setItem("ttmc-played-v2", JSON.stringify(playedRef.current)) } catch (e) {}
   }
 
-  async function launchGame() {
-    if (teams.length < 2) return
-    setStep("loading")
-    setLoadError("")
-    setLoadProgress({ pct: 5, msg: "Contact du serveur…" })
-
-    let progInterval
-    const t0 = Date.now()
-    const expectedMs = INIT_GEN * 2500
-    progInterval = setInterval(() => {
-      const el = Date.now() - t0
-      const pct = Math.min(95, 5 + Math.round((el / expectedMs) * 90))
-      setLoadProgress({ pct, msg: `L'IA fabrique ${INIT_GEN} thèmes originaux… (${Math.round(el/1000)}s)` })
-    }, 500)
-
-    try {
-      const fresh = await fetchThemes(INIT_GEN, [])
-      clearInterval(progInterval)
-      setLoadProgress({ pct: 100, msg: `✅ ${fresh.length} thèmes prêts !` })
-      seenTitlesRef.current = new Set(fresh.map(t => normTitle(t.t)))
-      bgFiredRef.current = false
-      setThemes(fresh)
-      setTimeout(() => startWithThemes(fresh), 400)
-    } catch (e) {
-      clearInterval(progInterval)
-      console.error(e)
-      setLoadError("L'IA n'a pas répondu. On joue avec la banque de secours (11 thèmes).")
-      const fallback = shuffle(SEED_THEMES).slice(0, 11)
-      seenTitlesRef.current = new Set(fallback.map(t => normTitle(t.t)))
-      setThemes(fallback)
-      setTimeout(() => startWithThemes(fallback), 1500)
-    }
-  }
-
-  function startWithThemes(pool) {
-    usedRef.current = {}
-    setDeck(shuffle(pool))
-    setCi(0); setTurn(0); reset()
-    setGageT(""); setBoost(null)
-    goSq(teams[0]?.pos || 0)
-  }
-
-  async function backgroundGen() {
-    if (bgBusy) return
-    setBgBusy(true)
-    try {
-      const more = await fetchThemes(BG_GEN, themes.map(t => t.t))
-      const fresh = more.filter(t => !seenTitlesRef.current.has(normTitle(t.t)))
-      fresh.forEach(t => seenTitlesRef.current.add(normTitle(t.t)))
-      if (fresh.length) {
-        setThemes(cur => [...cur, ...fresh])
-        setDeck(cur => [...cur, ...shuffle(fresh)])
-        console.log(`[bg] +${fresh.length} thèmes prêts`)
-      }
-    } catch (e) {
-      console.warn("[bg] échec:", e.message)
-    } finally {
-      setBgBusy(false)
-    }
+  function resetPlayed() {
+    playedRef.current = {}
+    setPlayedCount(0)
+    try { localStorage.removeItem("ttmc-played-v2") } catch (e) {}
   }
 
   const ct = teams.length ? teams[turn % teams.length] : null
@@ -255,13 +119,30 @@ export default function App() {
     ? { q: raw[0], t: "m", o: raw[2], c: raw[3], x: raw[4] || "" }
     : { q: raw[0], t: "o", a: raw[2], x: raw[3] || "" }) : null
 
-  function reset() { setLevel(0); setPicked(null); setShowA(false); setUserA(""); setAk(k => k + 1); setJudgeVerdict(null); setJudgeLoading(false); setTimerLeft(0) }
+  function reset() { setLevel(0); setPicked(null); setShowA(false); setUserA(""); setAk(k => k + 1); setTimerLeft(0) }
 
   function goSq(pos) {
     const sq = ST[pos]
     if (sq === "G") { setGageT(pickR(GA)); setBoost(null); setStep("gage") }
     else if (sq === "B") { setBoost(pickR(BO)); setGageT(""); setStep("boost") }
     else { setGageT(""); setBoost(null); setStep("theme") }
+  }
+
+  function startGame() {
+    if (teams.length < 2) return
+    usedRef.current = {}
+    let unseen = THEMES.filter(c => !playedRef.current[c.t])
+    if (unseen.length === 0) {
+      resetPlayed()
+      unseen = THEMES.slice()
+    } else if (unseen.length < 3) {
+      const played = THEMES.filter(c => playedRef.current[c.t])
+      unseen = [...unseen, ...shuffle(played).slice(0, 6)]
+    }
+    setDeck(shuffle(unseen))
+    setCi(0); setTurn(0); reset()
+    setGageT(""); setBoost(null)
+    goSq(teams[0]?.pos || 0)
   }
 
   function addTeam() {
@@ -275,11 +156,10 @@ export default function App() {
   function pickLv(v) {
     setLevel(v); setPicked(null); setShowA(false); setUserA("")
     setStep("question"); setAk(k => k + 1)
-    setJudgeVerdict(null); setJudgeLoading(false)
     if (timerEnabled) setTimerLeft(timeFor(v))
+    if (cd) markPlayed(cd.t)
   }
 
-  /* --------- Timer --------- */
   useEffect(() => {
     if (step !== "question" || !timerEnabled || timerLeft <= 0) return
     if (picked !== null || showA) return
@@ -290,49 +170,11 @@ export default function App() {
   useEffect(() => {
     if (step === "question" && timerEnabled && timerLeft === 0 && picked === null && !showA && cq) {
       if (cq.t === "m") { setPicked(-1); setTimeout(() => advance(false), 800) }
-      else { setShowA(true); setJudgeVerdict({ correct: false, feedback: "⏱️ Temps écoulé !" }) }
+      else { setShowA(true) }
     }
   }, [timerLeft, step, timerEnabled, picked, showA, cq])
 
-  /* --------- Backgroud gen quand deck bientôt vide --------- */
-  useEffect(() => {
-    if (!deck.length || bgFiredRef.current) return
-    const remaining = deck.length - ci
-    if (remaining <= BG_TRIGGER && !bgBusy) {
-      bgFiredRef.current = true
-      backgroundGen()
-    }
-  }, [ci, deck.length, bgBusy])
-
-  useEffect(() => {
-    if (bgFiredRef.current && !bgBusy) {
-      const t = setTimeout(() => { bgFiredRef.current = false }, 2000)
-      return () => clearTimeout(t)
-    }
-  }, [bgBusy])
-
-  function selOpt(i) {
-    if (picked === null) setPicked(i)
-  }
-
-  async function submitOpen() {
-    if (!userA.trim() || judgeLoading || showA) return
-    setJudgeLoading(true)
-    setShowA(true)
-    try {
-      const r = await fetch("/api/judge", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify({ question: cq.q, expected: cq.a, answer: userA })
-      })
-      const v = await r.json()
-      setJudgeVerdict(v)
-    } catch (e) {
-      setJudgeVerdict({ correct: false, feedback: "Impossible de joindre le juge, décidez entre vous." })
-    } finally {
-      setJudgeLoading(false)
-    }
-  }
+  function selOpt(i) { if (picked === null) setPicked(i) }
 
   function pts(ok) {
     const m = boost?.id === "double" ? 2 : 1
@@ -359,7 +201,9 @@ export default function App() {
     while (nc < deck.length && usedRef.current[nc]) nc++
     if (nc >= deck.length) {
       usedRef.current = {}
-      setDeck(shuffle(themes))
+      let unseen = THEMES.filter(c => !playedRef.current[c.t])
+      if (unseen.length === 0) { resetPlayed(); unseen = THEMES.slice() }
+      setDeck(shuffle(unseen))
       nc = 0
     }
     setCi(nc); reset()
@@ -374,16 +218,15 @@ export default function App() {
     finalTeams.forEach(t => { if (t.pos >= BS) w = t })
     const entry = {
       date: new Date().toISOString(),
-      tone,
       winner: w.name,
-      teams: finalTeams.map(t => ({ name: t.name, pos: t.pos })),
-      themesTotal: themes.length
+      teams: finalTeams.map(t => ({ name: t.name, pos: t.pos }))
     }
     const next = [entry, ...history].slice(0, 20)
     setHistory(next)
     try { localStorage.setItem("ttmc-history-v1", JSON.stringify(next)) } catch (e) {}
   }
 
+  const remaining = THEMES.length - playedCount
   const pOk = pts(true), pFail = pts(false)
   const mcqOk = cq?.t === "m" && picked !== null && picked >= 0 ? picked === cq.c : false
 
@@ -391,41 +234,6 @@ export default function App() {
   const sC = { maxWidth: 440, margin: "0 auto", padding: "0 20px" }
   const sK = { background: "var(--sf)", borderRadius: 20, padding: "24px 22px", boxShadow: "0 1px 3px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.025)", border: "1px solid var(--bd)" }
 
-  /* ================== PIN GATE ================== */
-  if (pinRequired === true && !pin) return (
-    <div style={sP}>
-      <style>{globalCSS}</style>
-      <div style={sC}>
-        <div style={{textAlign:"center",padding:"80px 0 30px",animation:"fi .4s ease both"}}>
-          <div style={{fontSize:56,marginBottom:22}}>🔒</div>
-          <h2 style={{fontFamily:FH,fontWeight:800,fontSize:26,marginBottom:8}}>Accès protégé</h2>
-          <p style={{fontSize:14,color:"var(--tx2)",marginBottom:30}}>Entre le code PIN pour jouer</p>
-          <input
-            type="tel" inputMode="numeric" autoFocus placeholder="•  •  •  •"
-            value={pinInput}
-            onChange={e => { setPinInput(e.target.value.replace(/\D/g,'').slice(0,8)); setPinError("") }}
-            onKeyDown={e => { if (e.key === "Enter") submitPin() }}
-            style={{width:"100%",padding:"18px",borderRadius:14,border:"1.5px solid "+(pinError?"#F1948A":"var(--bd)"),background:"var(--sf)",fontSize:24,fontFamily:FH,fontWeight:700,textAlign:"center",letterSpacing:"0.5em",outline:"none",color:"var(--tx)",marginBottom:12}}
-          />
-          {pinError && <p style={{color:"#C0392B",fontSize:13,marginBottom:12}}>{pinError}</p>}
-          <button onClick={submitPin} disabled={!pinInput.trim() || pinChecking} style={mb(!!pinInput.trim() && !pinChecking, { opacity: pinInput.trim() && !pinChecking ? 1 : 0.4 })}>
-            {pinChecking ? "Vérification…" : "Entrer"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-
-  if (pinRequired === null) return (
-    <div style={sP}>
-      <style>{globalCSS}</style>
-      <div style={{...sC, textAlign:"center", padding:"120px 0"}}>
-        <div style={{fontSize:40}} className="pulse">⏳</div>
-      </div>
-    </div>
-  )
-
-  /* ================== HOME ================== */
   if (step === "home") return (
     <div style={sP}>
       <style>{globalCSS}</style>
@@ -433,26 +241,34 @@ export default function App() {
         <div style={{textAlign:"center",padding:"48px 0 24px",animation:"fi .5s ease both"}}>
           <div style={{fontSize:13,fontWeight:600,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",marginBottom:14}}>Le jeu de culture G</div>
           <h1 style={{fontFamily:FH,fontWeight:900,fontSize:34,lineHeight:1.1}}>Tu te mets<br/>combien ?</h1>
-          <p style={{marginTop:12,fontSize:13,color:"var(--tx2)"}}>✨ {INIT_GEN} nouveaux thèmes générés à chaque partie</p>
         </div>
 
-        {/* Tone selector */}
-        <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"var(--tx3)",display:"block",marginBottom:10}}>Ambiance</label>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-            {TONES.map(t => {
-              const on = tone === t.id
-              return (
-                <button key={t.id} onClick={() => setTone(t.id)} style={{padding:"10px 4px",borderRadius:12,border:on?"1.5px solid var(--tx)":"1px solid var(--bd)",background:on?"var(--tx)":"var(--sf)",color:on?"#fff":"var(--tx)",fontSize:12,fontWeight:600,fontFamily:FB,cursor:"pointer",lineHeight:1.2}}>
-                  <div>{t.lb}</div>
-                  <div style={{fontSize:10,opacity:.7,marginTop:2,fontWeight:400}}>{t.desc}</div>
-                </button>
-              )
-            })}
+        {/* Compteur thèmes */}
+        <div style={{background:"var(--sf)",borderRadius:16,padding:"14px 16px",border:"1px solid var(--bd)",marginBottom:18}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:12,fontWeight:600,letterSpacing:".1em",textTransform:"uppercase",color:"var(--tx3)"}}>Banque de thèmes</span>
+            <span style={{fontSize:14,fontWeight:700,color:remaining<5?"#C0392B":remaining<15?"#CA6F1E":"#1E8449",fontFamily:FH}}>
+              {remaining} / {THEMES.length}
+            </span>
           </div>
+          <div style={{width:"100%",height:6,background:"var(--bd)",borderRadius:20,overflow:"hidden"}}>
+            <div style={{width:(remaining/THEMES.length*100)+"%",height:"100%",background:remaining<5?"#C0392B":remaining<15?"#CA6F1E":"#1E8449",transition:"width .5s",borderRadius:20}}/>
+          </div>
+          <div style={{fontSize:11,color:"var(--tx3)",marginTop:8}}>
+            {remaining === THEMES.length
+              ? "Tous frais, jamais joués."
+              : remaining === 0
+                ? "🎉 Tous joués ! Ils vont être remis à zéro à la prochaine partie."
+                : `${playedCount} déjà joué${playedCount>1?"s":""}, ${remaining} restant${remaining>1?"s":""} avant reset.`}
+          </div>
+          {playedCount > 0 && (
+            <button onClick={resetPlayed} style={{marginTop:8,background:"none",border:"none",color:"var(--tx3)",fontSize:11,cursor:"pointer",fontFamily:FB,textDecoration:"underline",padding:0}}>
+              🔄 Remettre tous les thèmes à zéro
+            </button>
+          )}
         </div>
 
-        {/* Timer toggle */}
+        {/* Chrono */}
         <div style={{marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
           <div>
             <div style={{fontSize:14,fontWeight:600}}>⏱️ Chrono par question</div>
@@ -463,7 +279,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Teams */}
+        {/* Équipes */}
         <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"var(--tx3)",display:"block",marginBottom:10}}>Équipes (2 à 8)</label>
           <div style={{display:"flex",gap:8}}>
@@ -484,7 +300,7 @@ export default function App() {
         </div>
 
         <div style={{paddingBottom:14}}>
-          <button onClick={launchGame} disabled={teams.length < 2} style={mb(teams.length >= 2, { opacity: teams.length >= 2 ? 1 : 0.4, fontSize: 17, fontFamily: FH, fontWeight: 700 })}>
+          <button onClick={startGame} disabled={teams.length < 2} style={mb(teams.length >= 2, { opacity: teams.length >= 2 ? 1 : 0.4, fontSize: 17, fontFamily: FH, fontWeight: 700 })}>
             {teams.length < 2 ? `Encore ${2 - teams.length} équipe${2 - teams.length > 1 ? "s" : ""}` : "Lancer la partie 🚀"}
           </button>
         </div>
@@ -500,40 +316,15 @@ export default function App() {
     </div>
   )
 
-  /* ================== LOADING ================== */
-  if (step === "loading") return (
-    <div style={sP}>
-      <style>{globalCSS}</style>
-      <div style={sC}>
-        <div style={{textAlign:"center",padding:"80px 0 30px"}}>
-          <div style={{fontSize:56,marginBottom:22,animation:"fl 2s ease-in-out infinite"}}>✨</div>
-          <h2 style={{fontFamily:FH,fontWeight:800,fontSize:24,marginBottom:8}}>Préparation de la partie</h2>
-          <p style={{fontSize:14,color:"var(--tx2)",marginBottom:30}} className="pulse">{loadProgress.msg}</p>
-          <div style={{width:"100%",height:8,background:"var(--bd)",borderRadius:20,overflow:"hidden",marginBottom:14}}>
-            <div style={{width:loadProgress.pct+"%",height:"100%",background:"linear-gradient(90deg,#2471A3,#6C3483)",borderRadius:20,transition:"width .5s",backgroundSize:"40px 40px",animation:"prog 1s linear infinite"}}/>
-          </div>
-          <div style={{fontSize:12,color:"var(--tx3)"}}>{loadProgress.pct}%</div>
-          {loadError && (
-            <div style={{marginTop:24,padding:"12px 14px",borderRadius:10,background:"#FEF5E7",border:"1px solid #F5CBA7",color:"#B9770E",fontSize:13,lineHeight:1.5}}>
-              ⚠️ {loadError}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-
-  /* ================== JEU ================== */
   if (["gage","boost","theme","question"].includes(step) && ct) return (
     <div style={sP}>
       <style>{globalCSS}</style>
       <div style={sC}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0 6px"}}>
-          <span style={{fontSize:11,fontWeight:600,color:"var(--tx3)",letterSpacing:".08em"}}>TOUR {turn+1}</span>
+          <span style={{fontSize:11,fontWeight:600,color:"var(--tx3)",letterSpacing:".08em"}}>TOUR {turn+1} · {remaining} restants</span>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:18,height:18,borderRadius:5,background:ct.pal.bg}}/>
             <span style={{fontSize:14,fontWeight:700,color:ct.pal.bg}}>{ct.name}</span>
-            {bgBusy && <span title="Génération en arrière-plan" style={{fontSize:14,marginLeft:4}} className="spin">⚙️</span>}
           </div>
         </div>
         <Board teams={teams}/>
@@ -630,8 +421,8 @@ export default function App() {
               <div style={{marginTop:16}}>
                 {!showA && (
                   <div>
-                    <input type="text" placeholder="Votre réponse…" value={userA} onChange={e => setUserA(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && userA.trim()) submitOpen() }} style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1px solid var(--bd)",background:"var(--sf)",fontSize:16,fontFamily:FB,outline:"none",color:"var(--tx)",marginBottom:10}}/>
-                    <button onClick={submitOpen} disabled={!userA.trim()} style={mb(!!userA.trim(), { opacity: userA.trim() ? 1 : 0.4 })}>Valider</button>
+                    <input type="text" placeholder="Votre réponse…" value={userA} onChange={e => setUserA(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && userA.trim()) setShowA(true) }} style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1px solid var(--bd)",background:"var(--sf)",fontSize:16,fontFamily:FB,outline:"none",color:"var(--tx)",marginBottom:10}}/>
+                    <button onClick={() => setShowA(true)} disabled={!userA.trim()} style={mb(!!userA.trim(), { opacity: userA.trim() ? 1 : 0.4 })}>Voir la réponse</button>
                   </div>
                 )}
                 {showA && (
@@ -646,38 +437,18 @@ export default function App() {
                       <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"#1E8449",marginBottom:5}}>Réponse attendue</div>
                       <p style={{fontFamily:FH,fontWeight:700,fontSize:17,lineHeight:1.4,color:"#145A32"}}>{cq.a}</p>
                     </div>
-
-                    {judgeLoading && (
-                      <div style={{padding:"14px",borderRadius:12,background:"#F0EFEB",textAlign:"center",fontSize:14,color:"var(--tx2)",marginBottom:12}}>
-                        <span className="spin">⚖️</span> Le juge IA délibère…
-                      </div>
-                    )}
-
-                    {judgeVerdict && !judgeLoading && (
-                      <div style={{padding:"14px 16px",borderRadius:12,background:judgeVerdict.correct?"#EAFAF1":"#FDEDEC",border:"1px solid "+(judgeVerdict.correct?"#82E0AA":"#F1948A"),marginBottom:12}}>
-                        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".12em",color:judgeVerdict.correct?"#1E8449":"#C0392B",marginBottom:5}}>
-                          {judgeVerdict.correct ? "✓ Verdict : correct" : "✗ Verdict : non"}
-                        </div>
-                        <p style={{fontSize:13,lineHeight:1.5,color:judgeVerdict.correct?"#145A32":"#78281F"}}>{judgeVerdict.feedback}</p>
-                      </div>
-                    )}
-
-                    {cq.x && judgeVerdict && !judgeLoading && (
+                    {cq.x && (
                       <div style={{padding:"12px 14px",borderRadius:12,background:"#EBF5FB",border:"1px solid #AED6F1",fontSize:13,lineHeight:1.5,color:"#1A4971",marginBottom:12}}>
                         💡 {cq.x}
                       </div>
                     )}
-
-                    {judgeVerdict && !judgeLoading && (
-                      <div>
-                        <button onClick={() => advance(judgeVerdict.correct)} style={mb(true, { background: judgeVerdict.correct ? "#1E8449" : "#C0392B", marginBottom: 8 })}>
-                          {judgeVerdict.correct ? `Encaisser +${pOk} →` : (pFail > 0 ? `Continuer +${pFail} →` : "Continuer →")}
-                        </button>
-                        <button onClick={() => setJudgeVerdict(v => ({ ...v, correct: !v.correct }))} style={{width:"100%",padding:"10px",borderRadius:11,border:"1px solid var(--bd)",background:"none",color:"var(--tx3)",fontSize:12,cursor:"pointer",fontFamily:FB}}>
-                          🤨 Contester le verdict
-                        </button>
-                      </div>
-                    )}
+                    <p style={{fontSize:13,color:"var(--tx2)",textAlign:"center",marginBottom:12}}>
+                      <b style={{color:ct.pal.bg}}>{ct.name}</b> correct ?
+                    </p>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={() => advance(true)} style={{flex:1,padding:"14px",borderRadius:13,border:"1.5px solid #82E0AA",background:"#EAFAF1",color:"#1E8449",fontWeight:700,fontSize:15,fontFamily:FB,cursor:"pointer"}}>✓ +{pOk}</button>
+                      <button onClick={() => advance(false)} style={{flex:1,padding:"14px",borderRadius:13,border:"1.5px solid #F1948A",background:"#FDEDEC",color:"#C0392B",fontWeight:700,fontSize:15,fontFamily:FB,cursor:"pointer"}}>✗{pFail > 0 ? ` +${pFail}` : ""}</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -690,7 +461,6 @@ export default function App() {
     </div>
   )
 
-  /* ================== WIN ================== */
   if (step === "win") {
     let w = teams[0]
     teams.forEach(t => { if (t.pos >= BS) w = t })
@@ -703,6 +473,7 @@ export default function App() {
             <div style={{fontSize:60,marginBottom:14,animation:"pop .5s .2s ease both",opacity:0}}>🏆</div>
             <div style={{fontSize:11,fontWeight:600,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",marginBottom:10}}>Victoire</div>
             <h1 style={{fontFamily:FH,fontWeight:900,fontSize:30,color:w.pal.bg,animation:"fi .5s .3s ease both",opacity:0}}>{w.name}</h1>
+            <p style={{marginTop:10,fontSize:12,color:"var(--tx3)"}}>{playedCount}/{THEMES.length} thèmes joués au total</p>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:32}}>
             {so.map((t, i) => (
@@ -714,7 +485,7 @@ export default function App() {
             ))}
           </div>
           <div style={{display:"flex",gap:10,paddingBottom:20}}>
-            <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); launchGame() }} style={mb(true, { flex: 1 })}>Rejouer</button>
+            <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); startGame() }} style={mb(true, { flex: 1 })}>Rejouer</button>
             <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); setStep("home") }} style={mb(false, { flex: 1 })}>Accueil</button>
           </div>
           <div style={{textAlign:"center",paddingBottom:30}}>
@@ -725,7 +496,6 @@ export default function App() {
     )
   }
 
-  /* ================== HISTORY ================== */
   if (step === "history") return (
     <div style={sP}>
       <style>{globalCSS}</style>
@@ -742,14 +512,12 @@ export default function App() {
             {history.map((h, i) => {
               const d = new Date(h.date)
               const dStr = d.toLocaleDateString("fr-FR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })
-              const tn = TONES.find(x => x.id === h.tone)?.lb || h.tone
               return (
                 <div key={i} style={{padding:"14px 16px",borderRadius:13,background:"var(--sf)",border:"1px solid var(--bd)"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                     <div style={{fontSize:13,fontWeight:700,fontFamily:FH}}>🏆 {h.winner}</div>
                     <div style={{fontSize:11,color:"var(--tx3)"}}>{dStr}</div>
                   </div>
-                  <div style={{fontSize:11,color:"var(--tx2)",marginBottom:8}}>{tn}</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                     {h.teams.sort((a,b)=>b.pos-a.pos).map((t,j) => (
                       <span key={j} style={{fontSize:11,padding:"3px 8px",borderRadius:8,background:t.name===h.winner?"#FFFBE6":"#F0EFEB",color:t.name===h.winner?"#B9770E":"var(--tx2)",fontWeight:600}}>
