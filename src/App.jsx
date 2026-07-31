@@ -2,6 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { THEMES as SEED_THEMES } from "./themes.js"
 
 const BS = 42
+const INIT_GEN = 20
+const BG_GEN = 10
+const BG_TRIGGER = 5
+
 const PL = [
   {bg:"#C0392B",lt:"#FDEDEC"},{bg:"#2471A3",lt:"#EBF5FB"},
   {bg:"#1E8449",lt:"#EAFAF1"},{bg:"#CA6F1E",lt:"#FEF5E7"},
@@ -15,10 +19,19 @@ const ST = {}
 const GA = ["🎭 Mimez le thème 30s !","🗣️ Sans le mot principal !","🎤 Chantez sur Joyeux anniversaire !","🌍 Accent étranger !","✏️ Dessinez avec le doigt !","🙈 Yeux fermés !","🎯 Adversaire choisit niveau !","⏱️ 5 secondes max !","🔤 Épelez à l'envers !","🤫 Le + jeune seul !","👥 Tous en chœur !","🦶 Sur un pied !","📖 Anecdote d'abord !","🔇 Mots 1 syllabe !"]
 const BO = [{tx:"⚡ DOUBLE ×2 !",id:"double",lb:"×2"},{tx:"🏴‍☠️ VOL adversaire −2 !",id:"steal",lb:"🏴‍☠️"},{tx:"🔄 REJOUER si correct !",id:"replay",lb:"🔄"},{tx:"🛡️ BOUCLIER +1 même raté !",id:"shield",lb:"🛡️"},{tx:"🎯 SNIPER +3 bonus !",id:"sniper",lb:"🎯+3"}]
 
-function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-function pickR(a){return a[Math.floor(Math.random()*a.length)];}
+const TONES = [
+  { id: "familial", lb: "🌈 Familial", desc: "tout public" },
+  { id: "fun",      lb: "🎉 Fun",       desc: "insolite, pop" },
+  { id: "pointu",   lb: "🧠 Pointu",    desc: "exigeant" },
+  { id: "adulte",   lb: "🔞 Adulte",    desc: "sans filtre" }
+]
 
-const globalCSS = "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}:root{--bg:#F8F7F4;--sf:#FFF;--tx:#1C1C1A;--tx2:#6E6E68;--tx3:#A8A8A2;--bd:#EAEAE5}body{background:var(--bg)}@keyframes fi{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes si{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}@keyframes pop{0%{transform:scale(.6)}50%{transform:scale(1.08)}100%{transform:scale(1)}}@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}input::placeholder{color:var(--tx3)}button:active:not(:disabled){transform:scale(.97)!important}.spin{animation:spin 1s linear infinite;display:inline-block}"
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+function pickR(a){return a[Math.floor(Math.random()*a.length)]}
+function normTitle(t){return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
+function timeFor(level){return 25 + level * 5}
+
+const globalCSS = "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}:root{--bg:#F8F7F4;--sf:#FFF;--tx:#1C1C1A;--tx2:#6E6E68;--tx3:#A8A8A2;--bd:#EAEAE5}body{background:var(--bg)}@keyframes fi{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}@keyframes si{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}@keyframes pop{0%{transform:scale(.6)}50%{transform:scale(1.08)}100%{transform:scale(1)}}@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes prog{0%{background-position:0 0}100%{background-position:40px 0}}input::placeholder{color:var(--tx3)}button:active:not(:disabled){transform:scale(.97)!important}.spin{animation:spin 1s linear infinite;display:inline-block}.pulse{animation:pulse 1.5s ease-in-out infinite}"
 const FH = "'Playfair Display',Georgia,serif"
 const FB = "'DM Sans',system-ui,sans-serif"
 
@@ -75,89 +88,116 @@ export default function App() {
   const [ak, setAk] = useState(0)
   const [gageT, setGageT] = useState("")
   const [boost, setBoost] = useState(null)
-  const [genLoading, setGenLoading] = useState(false)
-  const [genError, setGenError] = useState("")
-  const [genCount, setGenCount] = useState(15)
+  const [tone, setTone] = useState("fun")
+  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerLeft, setTimerLeft] = useState(0)
+  const [judgeLoading, setJudgeLoading] = useState(false)
+  const [judgeVerdict, setJudgeVerdict] = useState(null)
+  const [loadProgress, setLoadProgress] = useState({ pct: 0, msg: "" })
+  const [loadError, setLoadError] = useState("")
+  const [history, setHistory] = useState([])
+  const [bgBusy, setBgBusy] = useState(false)
+
   const usedRef = useRef({})
-  const [playedCount, setPlayedCount] = useState(0)
-  const playedRef = useRef({})
+  const seenTitlesRef = useRef(new Set())
+  const bgFiredRef = useRef(false)
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("ttmc-played5")
-      if (saved) {
-        const obj = JSON.parse(saved)
-        playedRef.current = obj
-        setPlayedCount(Object.keys(obj).length)
-      }
-      const savedThemes = localStorage.getItem("ttmc-themes-v1")
-      if (savedThemes) {
-        const arr = JSON.parse(savedThemes)
-        if (Array.isArray(arr) && arr.length) {
-          const seedTitles = new Set(SEED_THEMES.map(t => t.t))
-          const extras = arr.filter(t => !seedTitles.has(t.t))
-          setThemes([...SEED_THEMES, ...extras])
-        }
-      }
-    } catch (e) { /* noop */ }
+      const h = localStorage.getItem("ttmc-history-v1")
+      if (h) setHistory(JSON.parse(h))
+      const t = localStorage.getItem("ttmc-tone")
+      if (t && TONES.find(x => x.id === t)) setTone(t)
+      const tim = localStorage.getItem("ttmc-timer")
+      if (tim === "1") setTimerEnabled(true)
+    } catch (e) {}
   }, [])
 
-  function persistThemes(next) {
+  useEffect(() => { try { localStorage.setItem("ttmc-tone", tone) } catch (e) {} }, [tone])
+  useEffect(() => { try { localStorage.setItem("ttmc-timer", timerEnabled ? "1" : "0") } catch (e) {} }, [timerEnabled])
+
+  /* --------- Génération de thèmes --------- */
+  async function fetchThemes(count, existingThemes) {
+    const r = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count, tone, existingThemes })
+    })
+    if (!r.ok) throw new Error("HTTP " + r.status)
+    const data = await r.json()
+    if (!data.themes?.length) throw new Error("Aucun thème généré")
+    return data.themes
+  }
+
+  async function launchGame() {
+    if (teams.length < 2) return
+    setStep("loading")
+    setLoadError("")
+    setLoadProgress({ pct: 5, msg: "Contact du serveur…" })
+
+    let progInterval
+    const t0 = Date.now()
+    const expectedMs = INIT_GEN * 2500
+    progInterval = setInterval(() => {
+      const el = Date.now() - t0
+      const pct = Math.min(95, 5 + Math.round((el / expectedMs) * 90))
+      setLoadProgress({ pct, msg: `L'IA fabrique ${INIT_GEN} thèmes originaux… (${Math.round(el/1000)}s)` })
+    }, 500)
+
     try {
-      const seedTitles = new Set(SEED_THEMES.map(t => t.t))
-      const extras = next.filter(t => !seedTitles.has(t.t))
-      localStorage.setItem("ttmc-themes-v1", JSON.stringify(extras))
-    } catch (e) { /* noop */ }
-  }
-
-  function markPlayed(name) {
-    playedRef.current[name] = true
-    setPlayedCount(Object.keys(playedRef.current).length)
-    try { localStorage.setItem("ttmc-played5", JSON.stringify(playedRef.current)) } catch (e) {}
-  }
-
-  function resetPlayed() {
-    playedRef.current = {}
-    setPlayedCount(0)
-    try { localStorage.removeItem("ttmc-played5") } catch (e) {}
-  }
-
-  async function generateThemes() {
-    setGenLoading(true)
-    setGenError("")
-    try {
-      const r = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          count: genCount,
-          existingThemes: themes.map(t => t.t)
-        })
-      })
-      if (!r.ok) throw new Error("Erreur serveur (HTTP " + r.status + ")")
-      const data = await r.json()
-      if (!data.themes?.length) throw new Error("Aucun thème généré")
-      const merged = [...themes, ...data.themes]
-      setThemes(merged)
-      persistThemes(merged)
+      const fresh = await fetchThemes(INIT_GEN, [])
+      clearInterval(progInterval)
+      setLoadProgress({ pct: 100, msg: `✅ ${fresh.length} thèmes prêts !` })
+      seenTitlesRef.current = new Set(fresh.map(t => normTitle(t.t)))
+      bgFiredRef.current = false
+      setThemes(fresh)
+      setTimeout(() => startWithThemes(fresh), 400)
     } catch (e) {
-      setGenError(e.message || "Erreur inconnue. Le serveur est-il lancé ?")
-    } finally {
-      setGenLoading(false)
+      clearInterval(progInterval)
+      console.error(e)
+      setLoadError("L'IA n'a pas répondu. On joue avec la banque de secours (11 thèmes).")
+      const fallback = shuffle(SEED_THEMES).slice(0, 11)
+      seenTitlesRef.current = new Set(fallback.map(t => normTitle(t.t)))
+      setThemes(fallback)
+      setTimeout(() => startWithThemes(fallback), 1500)
     }
   }
 
-  function clearGeneratedThemes() {
-    setThemes(SEED_THEMES)
-    try { localStorage.removeItem("ttmc-themes-v1") } catch (e) {}
+  function startWithThemes(pool) {
+    usedRef.current = {}
+    setDeck(shuffle(pool))
+    setCi(0); setTurn(0); reset()
+    setGageT(""); setBoost(null)
+    goSq(teams[0]?.pos || 0)
+  }
+
+  async function backgroundGen() {
+    if (bgBusy) return
+    setBgBusy(true)
+    try {
+      const more = await fetchThemes(BG_GEN, themes.map(t => t.t))
+      const fresh = more.filter(t => !seenTitlesRef.current.has(normTitle(t.t)))
+      fresh.forEach(t => seenTitlesRef.current.add(normTitle(t.t)))
+      if (fresh.length) {
+        setThemes(cur => [...cur, ...fresh])
+        setDeck(cur => [...cur, ...shuffle(fresh)])
+        console.log(`[bg] +${fresh.length} thèmes prêts`)
+      }
+    } catch (e) {
+      console.warn("[bg] échec:", e.message)
+    } finally {
+      setBgBusy(false)
+    }
   }
 
   const ct = teams.length ? teams[turn % teams.length] : null
   const cd = deck[ci] || null
   const raw = (level > 0 && cd?.q?.[level - 1]) || null
-  const cq = raw ? (raw[1] === "m" ? { q: raw[0], t: "m", o: raw[2], c: raw[3] } : { q: raw[0], t: "o", a: raw[2] }) : null
+  const cq = raw ? (raw[1] === "m"
+    ? { q: raw[0], t: "m", o: raw[2], c: raw[3], x: raw[4] || "" }
+    : { q: raw[0], t: "o", a: raw[2], x: raw[3] || "" }) : null
 
-  function reset() { setLevel(0); setPicked(null); setShowA(false); setUserA(""); setAk(k => k + 1) }
+  function reset() { setLevel(0); setPicked(null); setShowA(false); setUserA(""); setAk(k => k + 1); setJudgeVerdict(null); setJudgeLoading(false); setTimerLeft(0) }
 
   function goSq(pos) {
     const sq = ST[pos]
@@ -166,33 +206,75 @@ export default function App() {
     else { setGageT(""); setBoost(null); setStep("theme") }
   }
 
-  function startGame() {
-    if (teams.length < 2) return
-    usedRef.current = {}
-    let unseen = themes.filter(c => !playedRef.current[c.t])
-    if (unseen.length < 5) unseen = themes.slice()
-    setDeck(shuffle(unseen))
-    setCi(0); setTurn(0); reset()
-    setGageT(""); setBoost(null)
-    goSq(teams[0]?.pos || 0)
-  }
-
   function addTeam() {
     const n = nameIn.trim()
     if (!n || teams.length >= 8) return
     setTeams(p => [...p, { name: n, pos: 0, pal: PL[p.length % 8] }])
     setNameIn("")
   }
-
   function remTeam(i) { setTeams(p => p.filter((_, x) => x !== i)) }
 
   function pickLv(v) {
     setLevel(v); setPicked(null); setShowA(false); setUserA("")
     setStep("question"); setAk(k => k + 1)
-    if (cd) markPlayed(cd.t)
+    setJudgeVerdict(null); setJudgeLoading(false)
+    if (timerEnabled) setTimerLeft(timeFor(v))
   }
 
-  function selOpt(i) { if (picked === null) setPicked(i) }
+  /* --------- Timer --------- */
+  useEffect(() => {
+    if (step !== "question" || !timerEnabled || timerLeft <= 0) return
+    if (picked !== null || showA) return
+    const t = setTimeout(() => setTimerLeft(x => x - 1), 1000)
+    return () => clearTimeout(t)
+  }, [step, timerEnabled, timerLeft, picked, showA])
+
+  useEffect(() => {
+    if (step === "question" && timerEnabled && timerLeft === 0 && picked === null && !showA && cq) {
+      if (cq.t === "m") { setPicked(-1); setTimeout(() => advance(false), 800) }
+      else { setShowA(true); setJudgeVerdict({ correct: false, feedback: "⏱️ Temps écoulé !" }) }
+    }
+  }, [timerLeft, step, timerEnabled, picked, showA, cq])
+
+  /* --------- Backgroud gen quand deck bientôt vide --------- */
+  useEffect(() => {
+    if (!deck.length || bgFiredRef.current) return
+    const remaining = deck.length - ci
+    if (remaining <= BG_TRIGGER && !bgBusy) {
+      bgFiredRef.current = true
+      backgroundGen()
+    }
+  }, [ci, deck.length, bgBusy])
+
+  useEffect(() => {
+    if (bgFiredRef.current && !bgBusy) {
+      const t = setTimeout(() => { bgFiredRef.current = false }, 2000)
+      return () => clearTimeout(t)
+    }
+  }, [bgBusy])
+
+  function selOpt(i) {
+    if (picked === null) setPicked(i)
+  }
+
+  async function submitOpen() {
+    if (!userA.trim() || judgeLoading || showA) return
+    setJudgeLoading(true)
+    setShowA(true)
+    try {
+      const r = await fetch("/api/judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: cq.q, expected: cq.a, answer: userA })
+      })
+      const v = await r.json()
+      setJudgeVerdict(v)
+    } catch (e) {
+      setJudgeVerdict({ correct: false, feedback: "Impossible de joindre le juge, décidez entre vous." })
+    } finally {
+      setJudgeLoading(false)
+    }
+  }
 
   function pts(ok) {
     const m = boost?.id === "double" ? 2 : 1
@@ -213,15 +295,13 @@ export default function App() {
       return t
     })
     setTeams(nt)
-    if (nt.some(t => t.pos >= BS)) { setStep("win"); return }
+    if (nt.some(t => t.pos >= BS)) { saveHistory(nt); setStep("win"); return }
     usedRef.current[ci] = true
     let nc = ci + 1
     while (nc < deck.length && usedRef.current[nc]) nc++
     if (nc >= deck.length) {
-      let unseen2 = themes.filter(c => !playedRef.current[c.t])
-      if (unseen2.length < 3) unseen2 = themes.slice()
       usedRef.current = {}
-      setDeck(shuffle(unseen2))
+      setDeck(shuffle(themes))
       nc = 0
     }
     setCi(nc); reset()
@@ -231,70 +311,68 @@ export default function App() {
     goSq(nt[ntn % nt.length].pos)
   }
 
-  const generatedCount = themes.length - SEED_THEMES.length
-  const remaining = themes.length - playedCount
+  function saveHistory(finalTeams) {
+    let w = finalTeams[0]
+    finalTeams.forEach(t => { if (t.pos >= BS) w = t })
+    const entry = {
+      date: new Date().toISOString(),
+      tone,
+      winner: w.name,
+      teams: finalTeams.map(t => ({ name: t.name, pos: t.pos })),
+      themesTotal: themes.length
+    }
+    const next = [entry, ...history].slice(0, 20)
+    setHistory(next)
+    try { localStorage.setItem("ttmc-history-v1", JSON.stringify(next)) } catch (e) {}
+  }
+
   const pOk = pts(true), pFail = pts(false)
-  const mcqOk = cq?.t === "m" && picked !== null ? picked === cq.c : false
+  const mcqOk = cq?.t === "m" && picked !== null && picked >= 0 ? picked === cq.c : false
 
   const sP = { minHeight: "100dvh", fontFamily: FB, color: "var(--tx)", background: "var(--bg)" }
   const sC = { maxWidth: 440, margin: "0 auto", padding: "0 20px" }
   const sK = { background: "var(--sf)", borderRadius: 20, padding: "24px 22px", boxShadow: "0 1px 3px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.025)", border: "1px solid var(--bd)" }
 
+  /* ================== HOME ================== */
   if (step === "home") return (
     <div style={sP}>
       <style>{globalCSS}</style>
       <div style={sC}>
-        <div style={{textAlign:"center",padding:"52px 0 32px",animation:"fi .5s ease both"}}>
+        <div style={{textAlign:"center",padding:"48px 0 24px",animation:"fi .5s ease both"}}>
           <div style={{fontSize:13,fontWeight:600,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",marginBottom:14}}>Le jeu de culture G</div>
           <h1 style={{fontFamily:FH,fontWeight:900,fontSize:34,lineHeight:1.1}}>Tu te mets<br/>combien ?</h1>
-          <p style={{marginTop:12,fontSize:14,color:"var(--tx2)",lineHeight:1.6}}>
-            {themes.length} thèmes · {themes.length * 10} questions
-            {generatedCount > 0 && <span style={{color:"#1E8449",fontWeight:600}}> · {generatedCount} générés ✨</span>}
-          </p>
-          <p style={{marginTop:6,fontSize:12,color:"var(--tx3)"}}>🎭 Gages · ⚡ Boosts · {BS} cases</p>
-          {playedCount > 0 && (
-            <p style={{marginTop:10,fontSize:13,fontWeight:600,color:remaining<5?"#C0392B":"var(--tx2)"}}>
-              {playedCount} thèmes vus · {remaining > 0 ? remaining + " restants" : "génère-en de nouveaux !"}
-            </p>
-          )}
+          <p style={{marginTop:12,fontSize:13,color:"var(--tx2)"}}>✨ {INIT_GEN} nouveaux thèmes générés à chaque partie</p>
         </div>
 
-        {/* Bloc génération IA */}
-        <div style={{background:"linear-gradient(135deg,#EBF5FB 0%,#F4ECF7 100%)",borderRadius:18,padding:"18px 18px",marginBottom:24,border:"1px solid #D6EAF8"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".12em",color:"#2471A3"}}>✨ Générer avec l'IA</div>
-              <div style={{fontSize:12,color:"var(--tx2)",marginTop:3}}>Nouveaux thèmes originaux, calibrés 1→10</div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <button onClick={() => setGenCount(Math.max(5, genCount - 5))} disabled={genLoading || genCount <= 5} style={{width:28,height:28,borderRadius:8,border:"1px solid #AED6F1",background:"#fff",cursor:"pointer",fontWeight:700,color:"#2471A3",opacity:genCount<=5?0.4:1}}>−</button>
-              <span style={{minWidth:24,textAlign:"center",fontWeight:700,color:"#2471A3"}}>{genCount}</span>
-              <button onClick={() => setGenCount(Math.min(25, genCount + 5))} disabled={genLoading || genCount >= 25} style={{width:28,height:28,borderRadius:8,border:"1px solid #AED6F1",background:"#fff",cursor:"pointer",fontWeight:700,color:"#2471A3",opacity:genCount>=25?0.4:1}}>+</button>
-            </div>
+        {/* Tone selector */}
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"var(--tx3)",display:"block",marginBottom:10}}>Ambiance</label>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+            {TONES.map(t => {
+              const on = tone === t.id
+              return (
+                <button key={t.id} onClick={() => setTone(t.id)} style={{padding:"10px 4px",borderRadius:12,border:on?"1.5px solid var(--tx)":"1px solid var(--bd)",background:on?"var(--tx)":"var(--sf)",color:on?"#fff":"var(--tx)",fontSize:12,fontWeight:600,fontFamily:FB,cursor:"pointer",lineHeight:1.2}}>
+                  <div>{t.lb}</div>
+                  <div style={{fontSize:10,opacity:.7,marginTop:2,fontWeight:400}}>{t.desc}</div>
+                </button>
+              )
+            })}
           </div>
-          <button
-            onClick={generateThemes}
-            disabled={genLoading}
-            style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:genLoading?"#AED6F1":"#2471A3",color:"#fff",fontSize:15,fontWeight:700,cursor:genLoading?"wait":"pointer",fontFamily:FB,transition:"all .2s"}}
-          >
-            {genLoading
-              ? <><span className="spin">⏳</span> Génération en cours… ({genCount} thèmes, ~30-60s)</>
-              : `🎲 Générer ${genCount} nouveaux thèmes`}
-          </button>
-          {genError && (
-            <div style={{marginTop:10,padding:"10px 12px",borderRadius:10,background:"#FDEDEC",border:"1px solid #F1948A",color:"#C0392B",fontSize:12,lineHeight:1.5}}>
-              ❌ {genError}
-              <br/><span style={{fontSize:11,opacity:.85}}>Vérifie que <code>npm run dev</code> tourne bien (serveur + front) et que ta clé API est dans <code>.env</code>.</span>
-            </div>
-          )}
-          {generatedCount > 0 && !genLoading && (
-            <button onClick={clearGeneratedThemes} style={{marginTop:8,width:"100%",background:"none",border:"none",color:"#6E6E68",fontSize:11,cursor:"pointer",fontFamily:FB,textDecoration:"underline"}}>
-              Supprimer les {generatedCount} thèmes générés
-            </button>
-          )}
         </div>
 
-        <div style={{marginBottom:20}}>
+        {/* Timer toggle */}
+        <div style={{marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:600}}>⏱️ Chrono par question</div>
+            <div style={{fontSize:11,color:"var(--tx3)",marginTop:2}}>Niveau 1 : 30s · Niveau 10 : 75s</div>
+          </div>
+          <button onClick={() => setTimerEnabled(v => !v)} style={{width:52,height:28,borderRadius:14,border:"none",background:timerEnabled?"#1E8449":"#D0D0CB",position:"relative",cursor:"pointer",transition:"all .2s"}}>
+            <div style={{position:"absolute",top:2,left:timerEnabled?26:2,width:24,height:24,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"all .2s"}}/>
+          </button>
+        </div>
+
+        {/* Teams */}
+        <div style={{marginBottom:16}}>
           <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"var(--tx3)",display:"block",marginBottom:10}}>Équipes (2 à 8)</label>
           <div style={{display:"flex",gap:8}}>
             <input type="text" placeholder="Nom…" value={nameIn} onChange={e => setNameIn(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addTeam() }} maxLength={14} style={{flex:1,padding:"13px 16px",borderRadius:12,border:"1px solid var(--bd)",background:"var(--sf)",fontSize:16,fontFamily:FB,outline:"none",color:"var(--tx)"}}/>
@@ -302,7 +380,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:28}}>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:24}}>
           {teams.map((t, i) => (
             <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
               <div style={{width:30,height:30,borderRadius:8,background:t.pal.bg,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700,fontFamily:FH}}>{t.name[0]}</div>
@@ -313,16 +391,16 @@ export default function App() {
           {teams.length === 0 && <p style={{textAlign:"center",color:"var(--tx3)",fontSize:14,padding:"24px 0"}}>Ajoutez au moins 2 équipes.</p>}
         </div>
 
-        <div style={{paddingBottom:20}}>
-          <button onClick={startGame} disabled={teams.length < 2} style={mb(teams.length >= 2, { opacity: teams.length >= 2 ? 1 : 0.4, fontSize: 17, fontFamily: FH, fontWeight: 700 })}>
+        <div style={{paddingBottom:14}}>
+          <button onClick={launchGame} disabled={teams.length < 2} style={mb(teams.length >= 2, { opacity: teams.length >= 2 ? 1 : 0.4, fontSize: 17, fontFamily: FH, fontWeight: 700 })}>
             {teams.length < 2 ? `Encore ${2 - teams.length} équipe${2 - teams.length > 1 ? "s" : ""}` : "Lancer la partie 🚀"}
           </button>
         </div>
 
-        {playedCount > 0 && (
+        {history.length > 0 && (
           <div style={{textAlign:"center",paddingBottom:30}}>
-            <button onClick={resetPlayed} style={{background:"none",border:"none",color:"var(--tx3)",fontSize:12,cursor:"pointer",fontFamily:FB,textDecoration:"underline"}}>
-              Remettre à zéro ({playedCount} thèmes vus)
+            <button onClick={() => setStep("history")} style={{background:"none",border:"none",color:"var(--tx3)",fontSize:12,cursor:"pointer",fontFamily:FB,textDecoration:"underline"}}>
+              📜 Historique ({history.length} partie{history.length>1?"s":""})
             </button>
           </div>
         )}
@@ -330,6 +408,30 @@ export default function App() {
     </div>
   )
 
+  /* ================== LOADING ================== */
+  if (step === "loading") return (
+    <div style={sP}>
+      <style>{globalCSS}</style>
+      <div style={sC}>
+        <div style={{textAlign:"center",padding:"80px 0 30px"}}>
+          <div style={{fontSize:56,marginBottom:22,animation:"fl 2s ease-in-out infinite"}}>✨</div>
+          <h2 style={{fontFamily:FH,fontWeight:800,fontSize:24,marginBottom:8}}>Préparation de la partie</h2>
+          <p style={{fontSize:14,color:"var(--tx2)",marginBottom:30}} className="pulse">{loadProgress.msg}</p>
+          <div style={{width:"100%",height:8,background:"var(--bd)",borderRadius:20,overflow:"hidden",marginBottom:14}}>
+            <div style={{width:loadProgress.pct+"%",height:"100%",background:"linear-gradient(90deg,#2471A3,#6C3483)",borderRadius:20,transition:"width .5s",backgroundSize:"40px 40px",animation:"prog 1s linear infinite"}}/>
+          </div>
+          <div style={{fontSize:12,color:"var(--tx3)"}}>{loadProgress.pct}%</div>
+          {loadError && (
+            <div style={{marginTop:24,padding:"12px 14px",borderRadius:10,background:"#FEF5E7",border:"1px solid #F5CBA7",color:"#B9770E",fontSize:13,lineHeight:1.5}}>
+              ⚠️ {loadError}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  /* ================== JEU ================== */
   if (["gage","boost","theme","question"].includes(step) && ct) return (
     <div style={sP}>
       <style>{globalCSS}</style>
@@ -339,6 +441,7 @@ export default function App() {
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:18,height:18,borderRadius:5,background:ct.pal.bg}}/>
             <span style={{fontSize:14,fontWeight:700,color:ct.pal.bg}}>{ct.name}</span>
+            {bgBusy && <span title="Génération en arrière-plan" style={{fontSize:14,marginLeft:4}} className="spin">⚙️</span>}
           </div>
         </div>
         <Board teams={teams}/>
@@ -394,7 +497,12 @@ export default function App() {
             <div style={sK}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
                 <span style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:".1em",color:"var(--tx3)"}}>{cd ? cd.t : ""}</span>
-                <span style={{fontSize:24,fontWeight:900,fontFamily:FH,color:ct.pal.bg,animation:"pop .4s ease both"}}>{level}</span>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  {timerEnabled && timerLeft > 0 && picked === null && !showA && (
+                    <span style={{fontSize:14,fontWeight:700,color:timerLeft<10?"#C0392B":timerLeft<20?"#CA6F1E":"var(--tx2)",fontFamily:FB}}>⏱️ {timerLeft}s</span>
+                  )}
+                  <span style={{fontSize:24,fontWeight:900,fontFamily:FH,color:ct.pal.bg,animation:"pop .4s ease both"}}>{level}</span>
+                </div>
               </div>
               <p style={{fontFamily:FH,fontWeight:600,fontSize:19,lineHeight:1.4}}>{cq.q}</p>
             </div>
@@ -407,18 +515,21 @@ export default function App() {
                   if (done && isOk) { bg = "#EAFAF1"; bd = "#82E0AA"; cl = "#1E8449"; ib = "#1E8449"; ic = "#fff"; it = "✓" }
                   else if (done && isMe && !isOk) { bg = "#FDEDEC"; bd = "#F1948A"; cl = "#C0392B"; ib = "#C0392B"; ic = "#fff"; it = "✗" }
                   return (
-                    <button key={i} onClick={() => selOpt(i)} style={{padding:"14px 16px",borderRadius:13,border:"1.5px solid "+bd,background:bg,color:cl,fontSize:15,fontWeight:done && isOk ? 700 : 500,textAlign:"left",cursor:done?"default":"pointer",fontFamily:FB,transition:"all .2s",display:"flex",alignItems:"center",gap:10}}>
+                    <button key={i} onClick={() => selOpt(i)} disabled={done} style={{padding:"14px 16px",borderRadius:13,border:"1.5px solid "+bd,background:bg,color:cl,fontSize:15,fontWeight:done && isOk ? 700 : 500,textAlign:"left",cursor:done?"default":"pointer",fontFamily:FB,transition:"all .2s",display:"flex",alignItems:"center",gap:10}}>
                       <span style={{width:26,height:26,borderRadius:8,border:"1.5px solid "+bd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0,background:ib,color:ic}}>{it}</span>
                       {opt}
                     </button>
                   )
                 })}
-                {picked !== null && (
-                  <div style={{marginTop:8}}>
-                    <button onClick={() => advance(mcqOk)} style={mb(true, { background: mcqOk ? "#1E8449" : "#C0392B" })}>
-                      {mcqOk ? `Correct ! +${pOk} case${pOk > 1 ? "s" : ""} →` : (pFail > 0 ? `Raté +${pFail} →` : "Raté → suivant")}
-                    </button>
+                {picked !== null && cq.x && (
+                  <div style={{padding:"12px 14px",borderRadius:12,background:mcqOk?"#EAFAF1":"#EBF5FB",border:"1px solid "+(mcqOk?"#D5F5E3":"#AED6F1"),fontSize:13,lineHeight:1.5,color:mcqOk?"#145A32":"#1A4971"}}>
+                    💡 {cq.x}
                   </div>
+                )}
+                {picked !== null && (
+                  <button onClick={() => advance(mcqOk)} style={mb(true, { background: mcqOk ? "#1E8449" : "#C0392B" })}>
+                    {mcqOk ? `Correct ! +${pOk} case${pOk > 1 ? "s" : ""} →` : (pFail > 0 ? `Raté +${pFail} →` : "Raté → suivant")}
+                  </button>
                 )}
               </div>
             )}
@@ -427,8 +538,8 @@ export default function App() {
               <div style={{marginTop:16}}>
                 {!showA && (
                   <div>
-                    <input type="text" placeholder="Votre réponse…" value={userA} onChange={e => setUserA(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && userA.trim()) setShowA(true) }} style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1px solid var(--bd)",background:"var(--sf)",fontSize:16,fontFamily:FB,outline:"none",color:"var(--tx)",marginBottom:10}}/>
-                    <button onClick={() => setShowA(true)} disabled={!userA.trim()} style={mb(!!userA.trim(), { opacity: userA.trim() ? 1 : 0.4 })}>Valider</button>
+                    <input type="text" placeholder="Votre réponse…" value={userA} onChange={e => setUserA(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && userA.trim()) submitOpen() }} style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1px solid var(--bd)",background:"var(--sf)",fontSize:16,fontFamily:FB,outline:"none",color:"var(--tx)",marginBottom:10}}/>
+                    <button onClick={submitOpen} disabled={!userA.trim()} style={mb(!!userA.trim(), { opacity: userA.trim() ? 1 : 0.4 })}>Valider</button>
                   </div>
                 )}
                 {showA && (
@@ -439,17 +550,42 @@ export default function App() {
                         <p style={{fontFamily:FH,fontWeight:600,fontSize:16,lineHeight:1.3,color:"#1A4971"}}>{userA}</p>
                       </div>
                     )}
-                    <div style={{background:"#EAFAF1",border:"1px solid #D5F5E3",borderRadius:14,padding:"16px 18px",marginBottom:16}}>
+                    <div style={{background:"#EAFAF1",border:"1px solid #D5F5E3",borderRadius:14,padding:"16px 18px",marginBottom:12}}>
                       <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:".12em",color:"#1E8449",marginBottom:5}}>Réponse attendue</div>
                       <p style={{fontFamily:FH,fontWeight:700,fontSize:17,lineHeight:1.4,color:"#145A32"}}>{cq.a}</p>
                     </div>
-                    <p style={{fontSize:13,color:"var(--tx2)",textAlign:"center",marginBottom:12}}>
-                      <b style={{color:ct.pal.bg}}>{ct.name}</b> correct ?
-                    </p>
-                    <div style={{display:"flex",gap:8}}>
-                      <button onClick={() => advance(true)} style={{flex:1,padding:"14px",borderRadius:13,border:"1.5px solid #82E0AA",background:"#EAFAF1",color:"#1E8449",fontWeight:700,fontSize:15,fontFamily:FB,cursor:"pointer"}}>✓ +{pOk}</button>
-                      <button onClick={() => advance(false)} style={{flex:1,padding:"14px",borderRadius:13,border:"1.5px solid #F1948A",background:"#FDEDEC",color:"#C0392B",fontWeight:700,fontSize:15,fontFamily:FB,cursor:"pointer"}}>✗{pFail > 0 ? ` +${pFail}` : ""}</button>
-                    </div>
+
+                    {judgeLoading && (
+                      <div style={{padding:"14px",borderRadius:12,background:"#F0EFEB",textAlign:"center",fontSize:14,color:"var(--tx2)",marginBottom:12}}>
+                        <span className="spin">⚖️</span> Le juge IA délibère…
+                      </div>
+                    )}
+
+                    {judgeVerdict && !judgeLoading && (
+                      <div style={{padding:"14px 16px",borderRadius:12,background:judgeVerdict.correct?"#EAFAF1":"#FDEDEC",border:"1px solid "+(judgeVerdict.correct?"#82E0AA":"#F1948A"),marginBottom:12}}>
+                        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".12em",color:judgeVerdict.correct?"#1E8449":"#C0392B",marginBottom:5}}>
+                          {judgeVerdict.correct ? "✓ Verdict : correct" : "✗ Verdict : non"}
+                        </div>
+                        <p style={{fontSize:13,lineHeight:1.5,color:judgeVerdict.correct?"#145A32":"#78281F"}}>{judgeVerdict.feedback}</p>
+                      </div>
+                    )}
+
+                    {cq.x && judgeVerdict && !judgeLoading && (
+                      <div style={{padding:"12px 14px",borderRadius:12,background:"#EBF5FB",border:"1px solid #AED6F1",fontSize:13,lineHeight:1.5,color:"#1A4971",marginBottom:12}}>
+                        💡 {cq.x}
+                      </div>
+                    )}
+
+                    {judgeVerdict && !judgeLoading && (
+                      <div>
+                        <button onClick={() => advance(judgeVerdict.correct)} style={mb(true, { background: judgeVerdict.correct ? "#1E8449" : "#C0392B", marginBottom: 8 })}>
+                          {judgeVerdict.correct ? `Encaisser +${pOk} →` : (pFail > 0 ? `Continuer +${pFail} →` : "Continuer →")}
+                        </button>
+                        <button onClick={() => setJudgeVerdict(v => ({ ...v, correct: !v.correct }))} style={{width:"100%",padding:"10px",borderRadius:11,border:"1px solid var(--bd)",background:"none",color:"var(--tx3)",fontSize:12,cursor:"pointer",fontFamily:FB}}>
+                          🤨 Contester le verdict
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -462,6 +598,7 @@ export default function App() {
     </div>
   )
 
+  /* ================== WIN ================== */
   if (step === "win") {
     let w = teams[0]
     teams.forEach(t => { if (t.pos >= BS) w = t })
@@ -474,7 +611,6 @@ export default function App() {
             <div style={{fontSize:60,marginBottom:14,animation:"pop .5s .2s ease both",opacity:0}}>🏆</div>
             <div style={{fontSize:11,fontWeight:600,letterSpacing:".14em",textTransform:"uppercase",color:"var(--tx3)",marginBottom:10}}>Victoire</div>
             <h1 style={{fontFamily:FH,fontWeight:900,fontSize:30,color:w.pal.bg,animation:"fi .5s .3s ease both",opacity:0}}>{w.name}</h1>
-            <p style={{marginTop:10,fontSize:12,color:"var(--tx3)",animation:"fi .5s .5s ease both",opacity:0}}>{playedCount}/{themes.length} thèmes joués au total</p>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:32}}>
             {so.map((t, i) => (
@@ -485,14 +621,59 @@ export default function App() {
               </div>
             ))}
           </div>
-          <div style={{display:"flex",gap:10,paddingBottom:40}}>
-            <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); startGame() }} style={mb(true, { flex: 1 })}>Rejouer</button>
+          <div style={{display:"flex",gap:10,paddingBottom:20}}>
+            <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); launchGame() }} style={mb(true, { flex: 1 })}>Rejouer</button>
             <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); setStep("home") }} style={mb(false, { flex: 1 })}>Accueil</button>
+          </div>
+          <div style={{textAlign:"center",paddingBottom:30}}>
+            <button onClick={() => setStep("history")} style={{background:"none",border:"none",color:"var(--tx3)",fontSize:12,cursor:"pointer",fontFamily:FB,textDecoration:"underline"}}>📜 Voir l'historique</button>
           </div>
         </div>
       </div>
     )
   }
+
+  /* ================== HISTORY ================== */
+  if (step === "history") return (
+    <div style={sP}>
+      <style>{globalCSS}</style>
+      <div style={sC}>
+        <div style={{padding:"32px 0 18px"}}>
+          <button onClick={() => setStep("home")} style={{background:"none",border:"none",color:"var(--tx3)",fontSize:14,cursor:"pointer",fontFamily:FB,marginBottom:14}}>← Retour</button>
+          <h1 style={{fontFamily:FH,fontWeight:800,fontSize:26}}>📜 Historique</h1>
+          <p style={{fontSize:12,color:"var(--tx3)",marginTop:4}}>{history.length} partie{history.length>1?"s":""} — 20 dernières conservées</p>
+        </div>
+        {history.length === 0 ? (
+          <p style={{textAlign:"center",color:"var(--tx3)",fontSize:14,padding:"40px 0"}}>Rien encore. Lance une partie !</p>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingBottom:40}}>
+            {history.map((h, i) => {
+              const d = new Date(h.date)
+              const dStr = d.toLocaleDateString("fr-FR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })
+              const tn = TONES.find(x => x.id === h.tone)?.lb || h.tone
+              return (
+                <div key={i} style={{padding:"14px 16px",borderRadius:13,background:"var(--sf)",border:"1px solid var(--bd)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{fontSize:13,fontWeight:700,fontFamily:FH}}>🏆 {h.winner}</div>
+                    <div style={{fontSize:11,color:"var(--tx3)"}}>{dStr}</div>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--tx2)",marginBottom:8}}>{tn}</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {h.teams.sort((a,b)=>b.pos-a.pos).map((t,j) => (
+                      <span key={j} style={{fontSize:11,padding:"3px 8px",borderRadius:8,background:t.name===h.winner?"#FFFBE6":"#F0EFEB",color:t.name===h.winner?"#B9770E":"var(--tx2)",fontWeight:600}}>
+                        {t.name} — {t.pos}/{BS}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            <button onClick={() => { if(confirm("Effacer tout l'historique ?")){ setHistory([]); try{localStorage.removeItem("ttmc-history-v1")}catch(e){} } }} style={{marginTop:10,background:"none",border:"none",color:"#C0392B",fontSize:12,cursor:"pointer",fontFamily:FB,textDecoration:"underline"}}>Effacer l'historique</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 
   return null
 }
