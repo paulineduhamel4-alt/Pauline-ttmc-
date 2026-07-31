@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { THEMES } from "./themes.js"
 
-const BS = 42
+const BS = 55
 const PL = [
   {bg:"#C0392B",lt:"#FDEDEC"},{bg:"#2471A3",lt:"#EBF5FB"},
   {bg:"#1E8449",lt:"#EAFAF1"},{bg:"#CA6F1E",lt:"#FEF5E7"},
@@ -9,8 +9,8 @@ const PL = [
   {bg:"#B03A7A",lt:"#FDECF4"},{bg:"#5D4E37",lt:"#FAF0E6"}
 ]
 const ST = {}
-;[5,11,17,23,29,35,39].forEach(i => { ST[i] = "G" })
-;[8,15,21,28,34,40].forEach(i => { ST[i] = "B" })
+;[5,11,17,23,29,35,41,47,52].forEach(i => { ST[i] = "G" })
+;[8,14,20,26,32,38,44,50].forEach(i => { ST[i] = "B" })
 
 const GA = ["🎭 Mimez le thème 30s !","🗣️ Sans le mot principal !","🎤 Chantez sur Joyeux anniversaire !","🌍 Accent étranger !","✏️ Dessinez avec le doigt !","🙈 Yeux fermés !","🎯 Adversaire choisit niveau !","⏱️ 5 secondes max !","🔤 Épelez à l'envers !","🤫 Le + jeune seul !","👥 Tous en chœur !","🦶 Sur un pied !","📖 Anecdote d'abord !","🔇 Mots 1 syllabe !"]
 const BO = [{tx:"⚡ DOUBLE ×2 !",id:"double",lb:"×2"},{tx:"🏴‍☠️ VOL adversaire −2 !",id:"steal",lb:"🏴‍☠️"},{tx:"🔄 REJOUER si correct !",id:"replay",lb:"🔄"},{tx:"🛡️ BOUCLIER +1 même raté !",id:"shield",lb:"🛡️"},{tx:"🎯 SNIPER +3 bonus !",id:"sniper",lb:"🎯+3"}]
@@ -40,19 +40,28 @@ function Board({ teams }) {
   const cells = []
   for (let i = f; i <= to; i++) cells.push(i)
   return (
-    <div ref={ref} style={{display:"flex",gap:5,overflowX:"auto",padding:"10px 0",scrollbarWidth:"none"}}>
+    <div ref={ref} style={{display:"flex",gap:5,overflowX:"auto",padding:"10px 0 16px",scrollbarWidth:"none"}}>
       {cells.map(idx => {
         const h = teams.filter(t => t.pos === idx)
         const fin = idx === BS, sq = ST[idx]
-        const bg = fin ? "var(--tx)" : h.length ? h[0].pal.bg : sq === "G" ? "#FFF7E6" : sq === "B" ? "#E6FFFB" : "#F0EFEB"
-        const cl = fin ? "#fff" : h.length ? "#fff" : sq === "G" ? "#D48806" : sq === "B" ? "#08979C" : "var(--tx3)"
-        const bd = h.length || fin ? "none" : sq === "G" ? "1.5px solid #FFD666" : sq === "B" ? "1.5px solid #87E8DE" : "1px solid var(--bd)"
-        const lb = fin ? "🏆" : h.length ? h.map(t => t.name[0]).join("") : sq === "G" ? "🎭" : sq === "B" ? "⚡" : idx
+        const bg = fin ? "var(--tx)" : sq === "G" ? "#FFF7E6" : sq === "B" ? "#E6FFFB" : "#F0EFEB"
+        const cl = fin ? "#fff" : sq === "G" ? "#D48806" : sq === "B" ? "#08979C" : "var(--tx3)"
+        const bd = fin ? "none" : sq === "G" ? "1.5px solid #FFD666" : sq === "B" ? "1.5px solid #87E8DE" : "1px solid var(--bd)"
+        const lb = fin ? "🏆" : sq === "G" ? "🎭" : sq === "B" ? "⚡" : idx
+        const nP = h.length
         return (
-          <div key={idx} className={h.length ? "ba" : ""} style={{minWidth:38,height:38,borderRadius:10,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sq?12:11,fontWeight:600,fontFamily:FB,position:"relative",transition:"all .3s",background:bg,color:cl,border:bd}}>
-            {lb}
-            {h.length > 1 && (
-              <div style={{position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:h[1].pal.bg,border:"2px solid var(--bg)",fontSize:7,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700}}>{h[1].name[0]}</div>
+          <div key={idx} className={nP ? "ba" : ""} style={{minWidth:42,height:42,borderRadius:11,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sq?13:12,fontWeight:600,fontFamily:FB,position:"relative",transition:"all .3s",background:bg,color:cl,border:bd}}>
+            {nP === 0 && lb}
+            {nP > 0 && (
+              <div style={{position:"absolute",inset:0,display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"center",gap:1,padding:2}}>
+                {h.map((t, i) => {
+                  const sz = nP === 1 ? 28 : nP === 2 ? 20 : nP <= 4 ? 16 : 14
+                  const fs = nP === 1 ? 14 : nP === 2 ? 11 : 9
+                  return (
+                    <div key={i} style={{width:sz,height:sz,borderRadius:"50%",background:t.pal.bg,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:fs,fontWeight:700,fontFamily:FH,border:"2px solid #fff",boxShadow:"0 1px 3px rgba(0,0,0,.25)"}}>{t.name[0].toUpperCase()}</div>
+                  )
+                })}
+              </div>
             )}
           </div>
         )
