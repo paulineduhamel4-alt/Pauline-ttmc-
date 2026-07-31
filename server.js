@@ -3,22 +3,24 @@ import cors from 'cors'
 import crypto from 'crypto'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
 import 'dotenv/config'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 3001
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001'
-const JUDGE_MODEL = process.env.ANTHROPIC_JUDGE_MODEL || MODEL
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const JUDGE_MODEL = process.env.GEMINI_JUDGE_MODEL || MODEL
 const APP_PIN = (process.env.APP_PIN || '').trim()
 const IS_PROD = process.env.NODE_ENV === 'production'
+const CONCURRENCY = Number(process.env.GEN_CONCURRENCY || 8)
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('\n❌ ANTHROPIC_API_KEY manquante. Crée un fichier .env (voir .env.example)\n')
+const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+if (!API_KEY) {
+  console.error('\n❌ GEMINI_API_KEY manquante. Récupère-la sur https://aistudio.google.com/app/apikey (gratuit) puis mets-la dans .env\n')
   process.exit(1)
 }
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const ai = new GoogleGenAI({ apiKey: API_KEY })
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '2mb' }))
@@ -75,7 +77,7 @@ function buildSeed() {
   const region = Math.random() < 0.5 ? pickR(REGIONS) : ''
   const era = Math.random() < 0.4 ? pickR(ERAS) : ''
   const salt = crypto.randomBytes(4).toString('hex')
-  return { noun, angle, region, era, salt, brief: `${noun} ${angle}${region ? ' ' + region : ''}${era ? ' ' + era : ''}`.trim() }
+  return { salt, brief: `${noun} ${angle}${region ? ' ' + region : ''}${era ? ' ' + era : ''}`.trim() }
 }
 
 const TONE_INSTRUCTIONS = {
@@ -88,7 +90,7 @@ const TONE_INSTRUCTIONS = {
 function themePrompt({ existingThemes, seed, tone }) {
   const list = existingThemes.length ? existingThemes.slice(-60).join(' | ') : '(aucun)'
   const toneInstr = TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.fun
-  return `Génère UN nouveau thème de quiz de culture générale en français.
+  return `Tu es un expert français en création de quiz de culture générale. Génère UN nouveau thème.
 
 ${toneInstr}
 
@@ -108,7 +110,7 @@ CONTRAINTES :
 
 Chaque question inclut une EXPLICATION courte (1-2 phrases max) qui donne un fait éclairant sur la réponse.
 
-Format JSON strict (RÉPONSE = JSON PUR, rien avant ni après, pas de backticks) :
+Réponds UNIQUEMENT par ce JSON strict (pas de texte autour, pas de markdown) :
 {
   "t": "Nom du thème (avec article, sans emoji)",
   "e": "un seul emoji",
@@ -127,7 +129,7 @@ Format JSON strict (RÉPONSE = JSON PUR, rien avant ni après, pas de backticks)
 }
 
 RÈGLES ABSOLUES :
-- JSON pur, aucun texte autour, aucun markdown
+- JSON pur uniquement
 - Les 4 options d'un QCM sont toutes plausibles
 - La bonne réponse est vérifiable et factuellement correcte
 - L'index de bonne réponse (0-3) VARIE entre les questions, ne pas mettre toujours 2
@@ -159,32 +161,62 @@ function validateTheme(t) {
   return t
 }
 
+async function callGemini({ model, prompt, systemInstruction, maxTokens = 4000 }) {
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      responseMimeType: 'application/json',
+      maxOutputTokens: maxTokens,
+      temperature: 1.0,
+      ...(systemInstruction ? { systemInstruction } : {})
+    }
+  })
+  return response.text || ''
+}
+
 async function generateOne({ existingThemes, tone, attempt = 1 }) {
   const seed = buildSeed()
-  const msg = await client.messages.create({
-    model: MODEL,
-    max_tokens: 3500,
-    system: `Tu es un expert français en création de quiz de culture générale. Ta réponse est TOUJOURS un JSON pur, sans texte ni markdown autour.`,
-    messages: [{ role: 'user', content: themePrompt({ existingThemes, seed, tone }) }]
-  })
-  const text = msg.content.find(c => c.type === 'text')?.text || ''
   try {
+    const text = await callGemini({
+      model: MODEL,
+      prompt: themePrompt({ existingThemes, seed, tone }),
+      maxTokens: 5000
+    })
     return validateTheme(extractJSON(text))
   } catch (e) {
     if (attempt < 2) return generateOne({ existingThemes, tone, attempt: attempt + 1 })
-    console.error(`[gen] échec ${attempt} tentatives:`, e.message)
+    console.error(`[gen] échec ${attempt} tentatives:`, e.message?.slice(0, 200))
     return null
   }
+}
+
+async function limitedAll(tasks, limit) {
+  const results = new Array(tasks.length)
+  let idx = 0
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++
+      results[i] = await tasks[i]()
+    }
+  }
+  await Promise.all(Array(Math.min(limit, tasks.length)).fill(0).map(() => worker()))
+  return results
+}
+
+function normTitle(t) {
+  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 app.post('/api/generate', requirePin, async (req, res) => {
   const count = Math.min(Math.max(Number(req.body?.count) || 20, 1), 30)
   const existingThemes = Array.isArray(req.body?.existingThemes) ? req.body.existingThemes : []
   const tone = req.body?.tone || 'fun'
-  console.log(`[gen] ${count} thèmes (ton: ${tone}), exclusions: ${existingThemes.length}…`)
+  console.log(`[gen] ${count} thèmes (ton: ${tone}, concurrence: ${CONCURRENCY}), exclusions: ${existingThemes.length}…`)
   const t0 = Date.now()
   try {
-    const results = await Promise.all(Array.from({ length: count }, () => generateOne({ existingThemes, tone })))
+    const tasks = Array.from({ length: count }, () => () => generateOne({ existingThemes, tone }))
+    const results = await limitedAll(tasks, CONCURRENCY)
     const themes = results.filter(Boolean)
     const seen = new Set(existingThemes.map(t => normTitle(t)))
     const unique = themes.filter(t => {
@@ -201,10 +233,6 @@ app.post('/api/generate', requirePin, async (req, res) => {
   }
 })
 
-function normTitle(t) {
-  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
-}
-
 /* ---------------------- Juge IA pour questions ouvertes ---------------------- */
 
 app.post('/api/judge', requirePin, async (req, res) => {
@@ -214,27 +242,25 @@ app.post('/api/judge', requirePin, async (req, res) => {
   }
   const userAns = String(answer).trim()
   if (!userAns) return res.json({ correct: false, feedback: "Aucune réponse donnée." })
-  try {
-    const msg = await client.messages.create({
-      model: JUDGE_MODEL,
-      max_tokens: 200,
-      system: `Tu es un juge de quiz français. Tu compares une réponse d'utilisateur à la réponse attendue. Sois bienveillant : accepte les synonymes, les fautes de frappe raisonnables, les variantes (ex : "Ötzi" ≈ "l'homme des glaces", "Ali" ≈ "Muhammad Ali"). Refuse si la réponse est fausse ou hors-sujet. Réponds UNIQUEMENT par un JSON strict.`,
-      messages: [{ role: 'user', content: `Question : "${question}"
+
+  const prompt = `Tu es un juge de quiz français. Compare la réponse d'un joueur à la réponse attendue.
+Sois bienveillant : accepte les synonymes, les fautes de frappe raisonnables, les variantes (ex : "Ötzi" ≈ "l'homme des glaces", "Ali" ≈ "Muhammad Ali", "USA" ≈ "États-Unis").
+Refuse si la réponse est fausse ou hors-sujet.
+
+Question : "${question}"
 Réponse attendue : "${expected}"
 Réponse du joueur : "${userAns}"
 
-Réponds par ce JSON exact :
-{"correct": true|false, "feedback": "Une phrase courte : validation + précision si utile."}` }]
-    })
-    const text = msg.content.find(c => c.type === 'text')?.text || ''
+Réponds UNIQUEMENT par ce JSON strict :
+{"correct": true, "feedback": "Une phrase courte : validation + précision utile."}
+OU
+{"correct": false, "feedback": "Une phrase courte expliquant pourquoi c'est refusé."}`
+
+  try {
+    const text = await callGemini({ model: JUDGE_MODEL, prompt, maxTokens: 300 })
     let verdict
-    try {
-      const s = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-      const start = s.indexOf('{'), end = s.lastIndexOf('}')
-      verdict = JSON.parse(s.slice(start, end + 1))
-    } catch {
-      verdict = { correct: false, feedback: 'Impossible de juger, décidez entre vous.' }
-    }
+    try { verdict = extractJSON(text) }
+    catch { verdict = { correct: false, feedback: 'Impossible de juger, décidez entre vous.' } }
     if (typeof verdict.correct !== 'boolean') verdict.correct = false
     if (typeof verdict.feedback !== 'string') verdict.feedback = ''
     res.json(verdict)
@@ -259,7 +285,7 @@ if (IS_PROD) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 TTMC prêt sur http://localhost:${PORT}`)
   console.log(`   Mode       : ${IS_PROD ? 'PRODUCTION (front servi par Express)' : 'DEV (front sur Vite)'}`)
-  console.log(`   Génération : ${MODEL}`)
-  console.log(`   Juge       : ${JUDGE_MODEL}`)
+  console.log(`   Modèle     : ${MODEL} (Google Gemini, gratuit)`)
+  console.log(`   Concurrence: ${CONCURRENCY}`)
   console.log(`   PIN        : ${APP_PIN ? '🔒 activé' : '⚠️  désactivé (accès libre)'}\n`)
 })
