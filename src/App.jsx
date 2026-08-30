@@ -117,9 +117,14 @@ export default function App() {
   const [chText, setChText] = useState("")
   const [chLeft, setChLeft] = useState(0)
   const [prevStep, setPrevStep] = useState("home")
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [teamStats, setTeamStats] = useState({})
+  const [askedTick, setAskedTick] = useState(0)
 
   const usedRef = useRef({})
   const playedRef = useRef({})
+  const askedRef = useRef({})
+  const audioRef = useRef(null)
 
   useEffect(() => {
     try {
@@ -134,11 +139,40 @@ export default function App() {
       if (tim === "1") setTimerEnabled(true)
       const co = localStorage.getItem("ttmc-contre")
       if (co === "0") setContreEnabled(false)
+      const so = localStorage.getItem("ttmc-sound")
+      if (so === "0") setSoundEnabled(false)
+      const ask = localStorage.getItem("ttmc-asked-v1")
+      if (ask) { askedRef.current = JSON.parse(ask); setAskedTick(t => t + 1) }
     } catch (e) {}
   }, [])
 
   useEffect(() => { try { localStorage.setItem("ttmc-timer", timerEnabled ? "1" : "0") } catch (e) {} }, [timerEnabled])
   useEffect(() => { try { localStorage.setItem("ttmc-contre", contreEnabled ? "1" : "0") } catch (e) {} }, [contreEnabled])
+  useEffect(() => { try { localStorage.setItem("ttmc-sound", soundEnabled ? "1" : "0") } catch (e) {} }, [soundEnabled])
+
+  function playTune(kind) {
+    if (!soundEnabled) return
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      const ctx = audioRef.current
+      if (ctx.state === "suspended") ctx.resume()
+      const notes = kind === "ok" ? [[880,0.08,0],[1320,0.15,0.08]]
+        : kind === "ko" ? [[220,0.28,0]]
+        : kind === "win" ? [[523,0.12,0],[659,0.12,0.12],[784,0.12,0.24],[1047,0.4,0.36]]
+        : [[440,0.05,0]]
+      notes.forEach(([f,d,t]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain()
+        o.type = kind === "ko" ? "sawtooth" : "sine"
+        o.frequency.value = f
+        o.connect(g); g.connect(ctx.destination)
+        const start = ctx.currentTime + t
+        g.gain.setValueAtTime(0.001, start)
+        g.gain.exponentialRampToValueAtTime(0.18, start + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, start + d)
+        o.start(start); o.stop(start + d + 0.02)
+      })
+    } catch (e) {}
+  }
 
   function markPlayed(name) {
     if (playedRef.current[name]) return
@@ -150,7 +184,9 @@ export default function App() {
   function resetPlayed() {
     playedRef.current = {}
     setPlayedCount(0)
-    try { localStorage.removeItem("ttmc-played-v2") } catch (e) {}
+    askedRef.current = {}
+    setAskedTick(t => t + 1)
+    try { localStorage.removeItem("ttmc-played-v2"); localStorage.removeItem("ttmc-asked-v1") } catch (e) {}
   }
 
   const baseIdx = teams.length ? turn % teams.length : 0
@@ -176,6 +212,9 @@ export default function App() {
   function startGame() {
     if (teams.length < 2) return
     usedRef.current = {}
+    const stats = {}
+    teams.forEach((_, i) => { stats[i] = { correct: 0, wrong: 0, levelsSum: 0, levelsCount: 0, maxLevel: 0, streak: 0, bestStreak: 0, challenges: 0 } })
+    setTeamStats(stats)
     let unseen = THEMES.filter(c => !playedRef.current[c.t])
     if (unseen.length === 0) {
       resetPlayed()
@@ -201,7 +240,12 @@ export default function App() {
   function pickLv(v) {
     setLevel(v); setPicked(null); setShowA(false); setUserA("")
     setOriginalLevel(v); setContreTeamIdx(null)
-    if (cd) markPlayed(cd.t)
+    if (cd) {
+      markPlayed(cd.t)
+      askedRef.current[cd.t + "|" + v] = true
+      setAskedTick(t => t + 1)
+      try { localStorage.setItem("ttmc-asked-v1", JSON.stringify(askedRef.current)) } catch (e) {}
+    }
     if (contreEnabled && teams.length >= 2 && v < 10) {
       setStep("contre"); setAk(k => k + 1)
     } else {
@@ -227,7 +271,15 @@ export default function App() {
     const ti = baseIdx
     const nt = teams.map((t, i) => i === ti ? { name: t.name, pos: Math.min(BS, t.pos + gain), pal: t.pal } : t)
     setTeams(nt)
-    if (nt.some(t => t.pos >= BS)) { saveHistory(nt); setStep("win"); return }
+    setTeamStats(prev => {
+      const next = { ...prev }
+      const s = { ...(next[ti] || { correct:0, wrong:0, levelsSum:0, levelsCount:0, maxLevel:0, streak:0, bestStreak:0, challenges:0 }) }
+      s.challenges += 1
+      next[ti] = s
+      return next
+    })
+    playTune(ok ? "ok" : "ko")
+    if (nt.some(t => t.pos >= BS)) { setTimeout(() => playTune("win"), 300); saveHistory(nt); setStep("win"); return }
     const ntn = turn + 1
     setTurn(ntn)
     reset()
@@ -278,7 +330,18 @@ export default function App() {
       return t
     })
     setTeams(nt)
-    if (nt.some(t => t.pos >= BS)) { saveHistory(nt); setStep("win"); return }
+    setTeamStats(prev => {
+      const next = { ...prev }
+      const s = { ...(next[ti] || { correct:0, wrong:0, levelsSum:0, levelsCount:0, maxLevel:0, streak:0, bestStreak:0, challenges:0 }) }
+      s.levelsSum += level; s.levelsCount += 1
+      if (level > s.maxLevel) s.maxLevel = level
+      if (ok) { s.correct += 1; s.streak += 1; if (s.streak > s.bestStreak) s.bestStreak = s.streak }
+      else { s.wrong += 1; s.streak = 0 }
+      next[ti] = s
+      return next
+    })
+    playTune(ok ? "ok" : "ko")
+    if (nt.some(t => t.pos >= BS)) { setTimeout(() => playTune("win"), 300); saveHistory(nt); setStep("win"); return }
     usedRef.current[ci] = true
     let nc = ci + 1
     while (nc < deck.length && usedRef.current[nc]) nc++
@@ -302,7 +365,10 @@ export default function App() {
     const entry = {
       date: new Date().toISOString(),
       winner: w.name,
-      teams: finalTeams.map(t => ({ name: t.name, pos: t.pos }))
+      teams: finalTeams.map((t, i) => {
+        const s = teamStats[i] || {}
+        return { name: t.name, pos: t.pos, correct: s.correct||0, wrong: s.wrong||0, maxLevel: s.maxLevel||0, bestStreak: s.bestStreak||0 }
+      })
     }
     const next = [entry, ...history].slice(0, 20)
     setHistory(next)
@@ -364,13 +430,24 @@ export default function App() {
         </div>
 
         {/* Contre */}
-        <div style={{marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
+        <div style={{marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
           <div>
             <div style={{fontSize:14,fontWeight:600}}>🎯 Mode CONTRE</div>
             <div style={{fontSize:11,color:"var(--tx3)",marginTop:2}}>Une équipe peut surenchérir</div>
           </div>
           <button onClick={() => setContreEnabled(v => !v)} style={{width:52,height:28,borderRadius:14,border:"none",background:contreEnabled?"#6C3483":"#D0D0CB",position:"relative",cursor:"pointer",transition:"all .2s"}}>
             <div style={{position:"absolute",top:2,left:contreEnabled?26:2,width:24,height:24,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"all .2s"}}/>
+          </button>
+        </div>
+
+        {/* Son */}
+        <div style={{marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",borderRadius:12,background:"var(--sf)",border:"1px solid var(--bd)"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:600}}>🔊 Sons</div>
+            <div style={{fontSize:11,color:"var(--tx3)",marginTop:2}}>Ding / buzz / fanfare victoire</div>
+          </div>
+          <button onClick={() => { setSoundEnabled(v => !v); if(!soundEnabled) setTimeout(() => playTune("ok"), 50) }} style={{width:52,height:28,borderRadius:14,border:"none",background:soundEnabled?"#CA6F1E":"#D0D0CB",position:"relative",cursor:"pointer",transition:"all .2s"}}>
+            <div style={{position:"absolute",top:2,left:soundEnabled?26:2,width:24,height:24,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"all .2s"}}/>
           </button>
         </div>
 
@@ -463,11 +540,17 @@ export default function App() {
               <b style={{color:ct.pal.bg}}>{ct.name}</b>, combien ?
             </p>
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:7,marginBottom:10}}>
-              {[1,2,3,4,5,6,7,8,9,10].map(v => (
-                <button key={v} onClick={() => pickLv(v)} style={{aspectRatio:"1",borderRadius:11,border:"1.5px solid var(--bd)",background:"var(--sf)",fontSize:19,fontWeight:800,fontFamily:FH,color:"var(--tx)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{v}</button>
-              ))}
+              {[1,2,3,4,5,6,7,8,9,10].map(v => {
+                const already = cd && askedRef.current[cd.t + "|" + v]
+                return (
+                  <button key={v+"-"+askedTick} onClick={() => pickLv(v)} style={{aspectRatio:"1",borderRadius:11,border:"1.5px solid "+(already?"#F1948A":"var(--bd)"),background:already?"#FFF5F5":"var(--sf)",fontSize:19,fontWeight:800,fontFamily:FH,color:already?"#C0392B":"var(--tx)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+                    {v}
+                    {already && <span style={{position:"absolute",bottom:2,fontSize:8,color:"#C0392B",fontWeight:600,fontFamily:FB}}>déjà vu</span>}
+                  </button>
+                )
+              })}
             </div>
-            <p style={{textAlign:"center",fontSize:11,color:"var(--tx3)"}}>Plus c'est haut, plus c'est dur !</p>
+            <p style={{textAlign:"center",fontSize:11,color:"var(--tx3)"}}>Plus c'est haut, plus c'est dur ! <span style={{color:"#C0392B"}}>Rouge = déjà tiré</span></p>
           </div>
         )}
 
@@ -677,14 +760,31 @@ export default function App() {
             <h1 style={{fontFamily:FH,fontWeight:900,fontSize:30,color:w.pal.bg,animation:"fi .5s .3s ease both",opacity:0}}>{w.name}</h1>
             <p style={{marginTop:10,fontSize:12,color:"var(--tx3)"}}>{playedCount}/{THEMES.length} thèmes joués au total</p>
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:32}}>
-            {so.map((t, i) => (
-              <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 15px",borderRadius:13,background:i===0?t.pal.lt:"var(--sf)",border:"1px solid "+(i===0?t.pal.bg+"33":"var(--bd)"),animation:`fi .3s ${0.3+i*0.07}s ease both`,opacity:0}}>
-                <div style={{width:28,height:28,borderRadius:8,background:t.pal.bg,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,fontWeight:800,fontFamily:FH}}>{i+1}</div>
-                <span style={{flex:1,fontSize:15,fontWeight:600}}>{t.name}</span>
-                <span style={{fontSize:13,fontWeight:600,color:"var(--tx2)"}}>case {t.pos}/{BS}</span>
-              </div>
-            ))}
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
+            {so.map((t, i) => {
+              const origIdx = teams.findIndex(x => x.name === t.name)
+              const s = teamStats[origIdx] || {}
+              const avg = s.levelsCount ? (s.levelsSum / s.levelsCount).toFixed(1) : "—"
+              return (
+                <div key={i} style={{padding:"13px 15px",borderRadius:13,background:i===0?t.pal.lt:"var(--sf)",border:"1px solid "+(i===0?t.pal.bg+"33":"var(--bd)"),animation:`fi .3s ${0.3+i*0.07}s ease both`,opacity:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:s.correct||s.wrong?8:0}}>
+                    <div style={{width:28,height:28,borderRadius:8,background:t.pal.bg,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,fontWeight:800,fontFamily:FH}}>{i+1}</div>
+                    <span style={{flex:1,fontSize:15,fontWeight:600}}>{t.name}</span>
+                    <span style={{fontSize:13,fontWeight:600,color:"var(--tx2)"}}>case {t.pos}/{BS}</span>
+                  </div>
+                  {(s.correct||s.wrong||s.challenges) ? (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6,fontSize:11,color:"var(--tx2)"}}>
+                      <span style={{padding:"3px 8px",borderRadius:6,background:"rgba(30,132,73,.12)",color:"#1E8449",fontWeight:600}}>✓ {s.correct||0}</span>
+                      <span style={{padding:"3px 8px",borderRadius:6,background:"rgba(192,57,43,.1)",color:"#C0392B",fontWeight:600}}>✗ {s.wrong||0}</span>
+                      <span style={{padding:"3px 8px",borderRadius:6,background:"var(--bd)",fontWeight:600}}>niv. moyen {avg}</span>
+                      <span style={{padding:"3px 8px",borderRadius:6,background:"var(--bd)",fontWeight:600}}>max {s.maxLevel||0}</span>
+                      {s.bestStreak > 1 && <span style={{padding:"3px 8px",borderRadius:6,background:"rgba(202,111,30,.15)",color:"#CA6F1E",fontWeight:600}}>🔥 série {s.bestStreak}</span>}
+                      {s.challenges > 0 && <span style={{padding:"3px 8px",borderRadius:6,background:"#F4ECF7",color:"#6C3483",fontWeight:600}}>🎪 {s.challenges}</span>}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
           <div style={{display:"flex",gap:10,paddingBottom:20}}>
             <button onClick={() => { setTeams(p => p.map(t => ({ name: t.name, pos: 0, pal: t.pal }))); startGame() }} style={mb(true, { flex: 1 })}>Rejouer</button>
@@ -723,7 +823,7 @@ export default function App() {
                   <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                     {h.teams.sort((a,b)=>b.pos-a.pos).map((t,j) => (
                       <span key={j} style={{fontSize:11,padding:"3px 8px",borderRadius:8,background:t.name===h.winner?"#FFFBE6":"#F0EFEB",color:t.name===h.winner?"#B9770E":"var(--tx2)",fontWeight:600}}>
-                        {t.name} — {t.pos}/{BS}
+                        {t.name} — {t.pos}/{BS}{t.correct !== undefined ? ` · ✓${t.correct} ✗${t.wrong}` : ""}
                       </span>
                     ))}
                   </div>
