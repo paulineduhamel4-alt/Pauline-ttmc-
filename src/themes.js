@@ -1,4 +1,4 @@
-// 100 thèmes · 1000 questions · français calibré
+// 115 thèmes · 1150 questions · français calibré
 // Format : ["Q?","m",[A,B,C,D],idx] · ["Q?","o","réponse"]
 // L1 = quasi tout le monde · L5 = culture solide · L10 = expert
 
@@ -1320,6 +1320,203 @@ export const THEMES = [
 ["Roman qui décrit une bataille pieds-plats ?","m",["Notre-Dame","Les Misérables","93","Napoléon le Petit"],2],
 ["Année de sa mort ?","m",["1875","1885","1895","1900"],1],
 ["Poème le plus connu (une lampe...) ?","m",["Demain dès l'aube","Booz endormi","Océan","Le Ciel"],0]
+]},
+
+/* ═══════════ BATCH 2 — CULTURE POP & GOURMANDE ═══════════ */
+
+{"t":"Le café","e":"☕","q":[
+["Quelle molécule du café tient éveillé ?","m",["Nicotine","Caféine","Théine","Taurine"],1],
+["Quel pays est le 1er producteur mondial de café ?","m",["Colombie","Vietnam","Éthiopie","Brésil"],3],
+["Comment appelle-t-on un espresso très court ?","m",["Lungo","Ristretto","Doppio","Macchiato"],1],
+["Quelle boisson italienne mélange espresso et lait moussé ?","m",["Americano","Latte","Cappuccino","Mocha"],2],
+["Dans quel pays d'Afrique de l'Est le café serait-il originaire ?","o","Éthiopie"],
+["Quelles sont les deux grandes variétés de café cultivées dans le monde ?","o","Arabica et Robusta"],
+["Quelle légende raconte la découverte du café grâce à un berger et ses chèvres ?","o","La légende de Kaldi"],
+["Quel café indonésien très cher est fait à partir de baies digérées par une civette ?","o","Le Kopi Luwak"],
+["Quel procédé d'infusion à froid, de 12 à 24h, est très à la mode ?","o","Le cold brew"],
+["Quel chimiste allemand a inventé la décaféination commerciale en 1906 ?","o","Ludwig Roselius"]
+]},
+
+{"t":"Les cocktails","e":"🍸","q":[
+["Quel cocktail cubain contient rhum, menthe et citron vert ?","m",["Cuba libre","Mojito","Daiquiri","Piña colada"],1],
+["Quel alcool est la base d'un Margarita ?","m",["Rhum","Vodka","Tequila","Gin"],2],
+["Quel cocktail italien mélange Aperol, prosecco et eau gazeuse ?","m",["Bellini","Spritz","Negroni","Americano"],1],
+["Comment James Bond commande-t-il son Martini ?","m",["À la cuillère","Au shaker, pas à la cuillère","Sur glace","Sec sans olive"],1],
+["Quel cocktail classique associe whisky, sucre, bitter et zeste d'orange ?","m",["Manhattan","Sazerac","Old Fashioned","Whisky sour"],2],
+["Quel cocktail italien mélange gin, Campari et vermouth rouge à parts égales ?","o","Le Negroni"],
+["Quel cocktail brésilien à base de cachaça ressemble au mojito ?","o","La Caïpirinha"],
+["Quel barman américain a publié le premier livre de cocktails en 1862 ?","o","Jerry Thomas"],
+["Quelle ville américaine revendique la naissance du Sazerac vers 1838 ?","o","La Nouvelle-Orléans"],
+["Quel bitter aromatique du Venezuela est indispensable au Pisco Sour et à l'Old Fashioned ?","o","L'Angostura"]
+]},
+
+{"t":"La pizza","e":"🍕","q":[
+["De quel pays est originaire la pizza ?","m",["France","Grèce","Italie","États-Unis"],2],
+["Quel fromage est indispensable à une Margherita ?","m",["Gruyère","Mozzarella","Parmesan","Cheddar"],1],
+["Quelle ville italienne est le berceau de la pizza moderne ?","m",["Rome","Milan","Naples","Florence"],2],
+["Quelle pizza porte le nom d'une reine d'Italie ?","m",["Napolitaine","Margherita","Regina","Capricciosa"],1],
+["Quel type de four donne le meilleur résultat pour une napolitaine ?","m",["Électrique","Gaz","Bois","Micro-ondes"],2],
+["À quelle température (approx) cuit un four à bois pour une napolitaine ?","m",["200 °C","300 °C","400 °C","480 °C"],3],
+["Comment s'appelle la pizza américaine de Chicago cuite dans un moule profond ?","o","La deep-dish (pizza)"],
+["Quel pizzaïolo napolitain aurait créé la Margherita pour la reine en 1889 ?","o","Raffaele Esposito"],
+["Quelle association défend la vraie pizza napolitaine avec un cahier des charges strict ?","o","L'AVPN (Associazione Verace Pizza Napoletana)"],
+["Quel label européen protège la Pizza Napoletana depuis 2010 ?","o","La STG (Spécialité Traditionnelle Garantie)"]
+]},
+
+{"t":"Le sushi","e":"🍣","q":[
+["Quel est l'ingrédient de base d'un sushi ?","m",["Poisson cru","Riz vinaigré","Nouilles","Tofu"],1],
+["Quelle algue enveloppe un maki ?","m",["Wakame","Kombu","Nori","Hijiki"],2],
+["Quel condiment vert et piquant accompagne les sushis ?","m",["Moutarde","Wasabi","Gingembre","Piment"],1],
+["Quel poisson gras est très prisé pour les sushis haut de gamme ?","m",["Cabillaud","Thon rouge","Sole","Merlan"],1],
+["Comment appelle-t-on du poisson cru servi sans riz ?","o","Le sashimi"],
+["Comment appelle-t-on la partie la plus grasse du thon rouge, très recherchée ?","o","L'otoro"],
+["Quel poisson japonais mortel s'il est mal préparé nécessite un permis pour être servi ?","o","Le fugu"],
+["Quel chef tokyoïte est au cœur du documentaire Jiro Dreams of Sushi (2011) ?","o","Jiro Ono"],
+["Quel marché aux poissons de Tokyo a déménagé à Toyosu en 2018 ?","o","Le marché de Tsukiji"],
+["Comment appelle-t-on le vinaigre de riz assaisonné qui parfume le riz à sushi ?","o","Le sushi-zu (ou awasezu)"]
+]},
+
+{"t":"La bière","e":"🍺","q":[
+["Quels sont les quatre ingrédients de base d'une bière ?","m",["Eau, malt, houblon, levure","Raisin, sucre, eau, levure","Blé, miel, eau, épices","Orge, sucre, eau, colorant"],0],
+["Quel pays est célèbre pour l'Oktoberfest ?","m",["Belgique","Autriche","Allemagne","Pays-Bas"],2],
+["De quelle couleur/aspect est une bière blanche ?","m",["Transparente","Trouble et pâle","Rouge","Noire"],1],
+["Quel pays produit le plus de bière au monde ?","m",["Allemagne","États-Unis","Chine","Belgique"],2],
+["Quelle bière belge trappiste est régulièrement élue meilleure au monde ?","m",["Chimay","Westvleteren","Orval","Rochefort"],1],
+["Quelle loi allemande de 1516 encadre la composition de la bière ?","o","Le Reinheitsgebot (loi de pureté)"],
+["Quel style de bière belge est brassé par fermentation spontanée à l'air libre ?","o","Le lambic"],
+["Que signifie l'acronyme IPA ?","o","India Pale Ale"],
+["Quelle levure sert aux bières de fermentation haute (ales) ?","o","Saccharomyces cerevisiae"],
+["Combien de brasseries portent le label Trappiste Authentique dans le monde (approx) ?","o","Une douzaine (autour de 12)"]
+]},
+
+{"t":"James Bond","e":"🕶️","q":[
+["Quel est le numéro d'agent de James Bond ?","m",["001","007","008","009"],1],
+["Comment Bond commande-t-il son Martini ?","m",["Remué","Au shaker, pas à la cuillère","Sec sans glace","Chaud"],1],
+["Quel constructeur automobile est indissociable de Bond ?","m",["Ferrari","Aston Martin","Jaguar","Bentley"],1],
+["Comment s'appelle la secrétaire de M au MI6 ?","m",["Q","Vesper","Moneypenny","Solitaire"],2],
+["Quel écrivain britannique a créé James Bond ?","o","Ian Fleming"],
+["Quel acteur écossais fut le premier Bond au cinéma ?","o","Sean Connery"],
+["Quel acteur incarne Bond dans Casino Royale (2006) ?","o","Daniel Craig"],
+["Quel film de 1995 marque le retour de Bond avec Pierce Brosnan ?","o","GoldenEye"],
+["Comment s'appelle l'organisation criminelle récurrente que Bond combat ?","o","SPECTRE"],
+["Quel est le titre du dernier film avec Daniel Craig, sorti en 2021 ?","o","Mourir peut attendre (No Time to Die)"]
+]},
+
+{"t":"Pixar","e":"🎥","q":[
+["Quel film Pixar raconte des jouets qui prennent vie ?","m",["Cars","Toy Story","Monstres & Cie","Le Monde de Nemo"],1],
+["Comment s'appelle le poisson-clown père de Nemo ?","m",["Marin","Marlin","Nick","Bob"],1],
+["Quel est le prénom du rat cuisinier de Ratatouille ?","m",["Louis","Remy","Emile","Django"],1],
+["Quel film Pixar suit un vieux monsieur qui accroche des ballons à sa maison ?","m",["Wall-E","Là-haut","Vice-Versa","Ratatouille"],1],
+["Quelle major du cinéma a racheté Pixar en 2006 ?","o","Disney"],
+["Quel cofondateur de Pixar a longtemps dirigé Apple ?","o","Steve Jobs"],
+["Quel a été le premier long-métrage entièrement en images de synthèse, en 1995 ?","o","Toy Story"],
+["Quel film Pixar de 2015 se passe dans la tête d'une petite fille ?","o","Vice-Versa (Inside Out)"],
+["Quel réalisateur emblématique de Pixar a signé Le Monde de Nemo et Wall-E ?","o","Andrew Stanton"],
+["Quel court-métrage de 1986 mettant en scène une lampe sert de logo au studio ?","o","Luxo Jr."]
+]},
+
+{"t":"Pokémon","e":"⚡","q":[
+["Combien de Pokémon comptait la première génération ?","m",["100","130","151","200"],2],
+["Quel Pokémon jaune est la mascotte de la licence ?","m",["Salamèche","Bulbizarre","Pikachu","Carapuce"],2],
+["Dans quel pays Pokémon a-t-il été créé ?","m",["Corée","Chine","Japon","États-Unis"],2],
+["Salamèche évolue en Reptincel puis en quel Pokémon final ?","m",["Dracaufeu","Tortank","Florizarre","Léviator"],0],
+["Comment s'appelle le jeu mobile en réalité augmentée sorti en 2016 ?","o","Pokémon GO"],
+["Quel créateur japonais a inventé Pokémon ?","o","Satoshi Tajiri"],
+["Quel Pokémon rose mythique de la gen 1 peut prendre l'apparence de n'importe quel autre ?","o","Mew"],
+["Combien de types différents de Pokémon existe-t-il aujourd'hui ?","o","18"],
+["Quel Pokémon issu du clonage de Mew apparaît dans le premier film ?","o","Mewtwo"],
+["Quel studio japonais développe les jeux principaux depuis 1996 ?","o","Game Freak"]
+]},
+
+{"t":"Les Simpsons","e":"🍩","q":[
+["Quel personnage adore les donuts et la bière Duff ?","m",["Bart","Homer","Marge","Lisa"],1],
+["De quelle couleur est la peau des Simpson ?","m",["Verte","Jaune","Orange","Bleue"],1],
+["Comment s'appelle le bar où Homer boit ses bières ?","m",["Le Duff","Chez Moe","Krusty Bar","Chez Flanders"],1],
+["Dans quelle ville fictive vit la famille Simpson ?","m",["Shelbyville","Springfield","Sacramento","San Diego"],1],
+["Combien d'enfants ont Homer et Marge ?","o","3 (Bart, Lisa et Maggie)"],
+["Comment s'appelle leur voisin ultra-religieux ?","o","Ned Flanders"],
+["Qui a créé la série en 1989 ?","o","Matt Groening"],
+["Quel milliardaire radin dirige la centrale nucléaire ?","o","Monsieur Burns (Charles Montgomery Burns)"],
+["Combien de saisons la série avait-elle dépassées en 2024 ?","o","Plus de 35 saisons"],
+["En quelle année est sorti le film Les Simpson au cinéma ?","o","2007"]
+]},
+
+{"t":"Le studio Ghibli","e":"🌸","q":[
+["De quel pays vient le studio Ghibli ?","m",["Chine","Corée","Japon","Taïwan"],2],
+["Quel film Ghibli met en scène un gros esprit gris tout doux de la forêt ?","m",["Ponyo","Chihiro","Totoro","Kiki"],2],
+["Quel réalisateur emblématique a cofondé le studio ?","m",["Ozu","Miyazaki","Kurosawa","Kore-eda"],1],
+["Quel film Ghibli suit une fillette dans un monde de bains pour esprits ?","m",["Mononoké","Ponyo","Le Voyage de Chihiro","Nausicaä"],2],
+["Quel autre cofondateur du studio a réalisé Le Tombeau des lucioles ?","o","Isao Takahata"],
+["Quel film Ghibli a remporté l'Oscar du meilleur film d'animation en 2003 ?","o","Le Voyage de Chihiro"],
+["Comment s'appelle le poisson rouge qui devient une petite fille dans un film de Miyazaki ?","o","Ponyo (sur la falaise)"],
+["Quel film met en scène un magicien nommé Hauru et une jeune fille transformée en vieille dame ?","o","Le Château ambulant"],
+["Quel compositeur signe la quasi-totalité des BO du studio ?","o","Joe Hisaishi"],
+["Quel film Ghibli de 2023 a valu à Miyazaki son second Oscar ?","o","Le Garçon et le Héron"]
+]},
+
+{"t":"Léonard de Vinci","e":"🖼️","q":[
+["De quel pays vient Léonard de Vinci ?","m",["France","Italie","Espagne","Grèce"],1],
+["Quel tableau représente une femme au sourire mystérieux ?","m",["La Joconde","La Vénus","La Cène","La Vierge"],0],
+["Dans quel musée est exposée La Joconde ?","m",["British Museum","Louvre","Prado","Uffizi"],1],
+["Quelle fresque murale représente le dernier repas du Christ ?","m",["La Vénus","La Cène","L'Annonciation","La Vierge aux rochers"],1],
+["Dans quel village toscan Léonard est-il né en 1452 ?","o","Vinci"],
+["Quel roi de France l'a accueilli à Amboise à la fin de sa vie ?","o","François Ier"],
+["Dans quelle demeure d'Amboise Léonard est-il mort en 1519 ?","o","Le Clos Lucé"],
+["Quel dessin de proportions humaines inscrit dans un cercle et un carré est célébrissime ?","o","L'Homme de Vitruve"],
+["Combien de tableaux authentifiés de Léonard existe-t-il environ ?","o","Une vingtaine (~20)"],
+["Quel tableau attribué à Léonard a été vendu 450 M$ en 2017 ?","o","Salvator Mundi"]
+]},
+
+{"t":"Van Gogh","e":"🌻","q":[
+["De quel pays vient Vincent Van Gogh ?","m",["France","Belgique","Pays-Bas","Danemark"],2],
+["Quelle fleur est le sujet d'une célèbre série de tableaux ?","m",["Coquelicots","Tournesols","Roses","Iris"],1],
+["Quelle partie de son corps s'est-il coupée en 1888 ?","m",["Un doigt","Le nez","Une oreille","La langue"],2],
+["Quel tableau ondulant représente un ciel nocturne au-dessus d'un village ?","m",["Nuit sur le fleuve","La Nuit étoilée","Ciel de Provence","Nuit d'été"],1],
+["Comment s'appelle son frère qui l'a soutenu financièrement toute sa vie ?","o","Théo (Théodorus Van Gogh)"],
+["Dans quelle ville du sud de la France peint-il énormément en 1888-1889 ?","o","Arles"],
+["Dans quel asile près d'Avignon s'est-il fait interner en 1889 ?","o","Saint-Rémy-de-Provence (Saint-Paul-de-Mausole)"],
+["Dans quel village d'Île-de-France est-il mort en 1890 ?","o","Auvers-sur-Oise"],
+["Combien de tableaux aurait-il vendus de son vivant, selon la légende ?","o","Un seul (La Vigne rouge)"],
+["Quel autre peintre a partagé la Maison jaune à Arles avec lui avant le drame de l'oreille ?","o","Paul Gauguin"]
+]},
+
+{"t":"L'espace","e":"🚀","q":[
+["Quelle planète est la plus proche du Soleil ?","m",["Vénus","Mercure","Mars","Terre"],1],
+["Qui a posé le pied sur la Lune en premier, en 1969 ?","m",["Buzz Aldrin","Neil Armstrong","Iouri Gagarine","John Glenn"],1],
+["Combien de planètes compte le système solaire depuis 2006 ?","m",["7","8","9","10"],1],
+["Quelle sonde de la NASA a survolé Pluton en 2015 ?","m",["Voyager 1","Cassini","New Horizons","Juno"],2],
+["Comment appelle-t-on la station orbitale internationale en abrégé ?","o","ISS (Station spatiale internationale)"],
+["Quel télescope spatial lancé fin 2021 succède à Hubble ?","o","James Webb (JWST)"],
+["Qui a été la première femme dans l'espace, en 1963 ?","o","Valentina Terechkova"],
+["Quel programme de la NASA vise à ramener des humains sur la Lune ?","o","Artemis"],
+["Quelle est la distance moyenne Terre-Soleil (à ±5 %) ?","o","Environ 150 millions de km (1 unité astronomique)"],
+["Quel astrophysicien belge est considéré comme le père de la théorie du Big Bang ?","o","Georges Lemaître"]
+]},
+
+{"t":"Apple","e":"🍎","q":[
+["Quel fruit est le logo d'Apple ?","m",["Orange","Pomme","Poire","Cerise"],1],
+["Quel produit iconique d'Apple sort en 2007 ?","m",["iPod","iPad","iPhone","iMac"],2],
+["Qui cofonde Apple avec Steve Jobs en 1976 ?","m",["Bill Gates","Steve Wozniak","Elon Musk","Tim Cook"],1],
+["Dans quelle ville de Californie se trouve le siège d'Apple ?","m",["San Francisco","Palo Alto","Cupertino","Mountain View"],2],
+["Qui dirige Apple depuis 2011 ?","o","Tim Cook"],
+["En quelle année Steve Jobs est-il mort ?","o","2011"],
+["Quel produit révolutionne l'écoute musicale portable en 2001 ?","o","L'iPod"],
+["Comment s'appelle le siège circulaire d'Apple inauguré en 2017 ?","o","Apple Park (surnommé le vaisseau spatial)"],
+["Quel spot publicitaire réalisé par Ridley Scott lance le Macintosh en 1984 ?","o","La pub 1984 (inspirée du roman d'Orwell)"],
+["Quel studio d'animation Steve Jobs a-t-il racheté à George Lucas en 1986 ?","o","Pixar"]
+]},
+
+{"t":"Astérix","e":"🍖","q":[
+["Comment s'appelle le meilleur ami d'Astérix ?","m",["Panoramix","Obélix","Idéfix","Assurancetourix"],1],
+["Que boivent les Gaulois pour devenir invincibles ?","m",["Du vin","De la cervoise","De la potion magique","De l'hydromel"],2],
+["Comment s'appelle le petit chien d'Obélix ?","m",["Idéfix","Trafic","Bonemine","Ordralfabétix"],0],
+["Qui a créé Astérix en 1959 ?","m",["Hergé","Franquin","Goscinny et Uderzo","Gotlib"],2],
+["Quel druide fabrique la potion magique ?","o","Panoramix"],
+["Comment s'appelle le poissonnier du village ?","o","Ordralfabétix"],
+["Quel est le titre du tout premier album, paru en 1961 ?","o","Astérix le Gaulois"],
+["Quel empereur romain apparaît régulièrement dans la série ?","o","Jules César"],
+["Dans quel album Astérix participe-t-il aux Jeux Olympiques ?","o","Astérix aux Jeux Olympiques"],
+["Quel scénariste a écrit Astérix jusqu'à sa mort brutale en 1977 ?","o","René Goscinny"]
 ]}
 
 ]
