@@ -217,9 +217,13 @@ export function pickStarter(opts, prevRoundPts) {
 }
 
 // Trie main pour affichage
-export function sortHand(hand) {
+export function sortHand(hand, mode = "suit") {
   return hand.slice().sort((a, b) => {
     if (a.joker !== b.joker) return a.joker ? 1 : -1
+    if (mode === "rank") {
+      if (a.rank !== b.rank) return a.rank - b.rank
+      return SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)
+    }
     if (a.suit !== b.suit) return SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)
     return a.rank - b.rank
   })

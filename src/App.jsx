@@ -362,6 +362,14 @@ export default function App() {
   const [connStatus, setConnStatus] = useState("offline")
   const [clients, setClients] = useState([]) // {id, name}
 
+  // Undo (uniquement local + host, réinitialisé à chaque changement de tour)
+  const historyRef = useRef([])
+  const [historyLen, setHistoryLen] = useState(0)
+
+  // Tri de la main
+  const [sortMode, setSortMode] = useState(() => localStorage.getItem("rami-sort") || "suit")
+  useEffect(() => { localStorage.setItem("rami-sort", sortMode) }, [sortMode])
+
   useEffect(() => {
     const style = document.createElement("style")
     style.textContent = CSS
@@ -502,10 +510,32 @@ export default function App() {
     }
   }
 
+  function pushHistory(s, sel) {
+    if (mode !== "local" && mode !== "host") return
+    historyRef.current.push({ state: s, selected: new Set(sel) })
+    if (historyRef.current.length > 20) historyRef.current.shift()
+    setHistoryLen(historyRef.current.length)
+  }
+
+  function undo() {
+    if (mode === "client") return setWarn("Annulation dispo uniquement pour l'hôte / en local.")
+    if (historyRef.current.length === 0) return setWarn("Rien à annuler.")
+    const prev = historyRef.current.pop()
+    setHistoryLen(historyRef.current.length)
+    setState(prev.state)
+    setSelected(prev.selected)
+    if (mode === "host") {
+      const c = stateRef.current
+      broadcastState(prev.state, c.opts, c.scores, c.roundNum, c.roundHistory, c.clients, c.gameOver)
+    }
+  }
+
   function applyAction(action, params, playerIdx) {
     const cur = stateRef.current
     const s = cur.state
     if (!s) return
+    // Push history si c'est le tour du joueur en cours (avant l'action)
+    if (playerIdx === s.current && !s.over) pushHistory(s, selected)
     let res
     if (action === "draw") res = actDraw(s, cur.opts, params.source, playerIdx)
     else if (action === "pose") res = actPose(s, cur.opts, params.cardIds, playerIdx)
@@ -528,6 +558,11 @@ export default function App() {
       let newRoundHistory = cur.roundHistory
       let newRoundNum = cur.roundNum
       let newGameOver = cur.gameOver
+      // Effacer l'historique undo si le tour a changé (défausse) ou si manche finie
+      if (newState.current !== s.current || newState.over) {
+        historyRef.current = []
+        setHistoryLen(0)
+      }
       // Si manche terminée
       if (newState.over && Array.isArray(newState.roundPts)) {
         newScores = cur.scores.map((s, i) => s + newState.roundPts[i])
@@ -555,6 +590,7 @@ export default function App() {
     const newRoundNum = cur.roundNum + 1
     setRoundNum(newRoundNum)
     setState(s); setSelected(new Set()); setJokerPicker(null)
+    historyRef.current = []; setHistoryLen(0)
     if (mode === "local") setPass(true)
     if (mode === "host") broadcastState(s, cur.opts, cur.scores, newRoundNum, cur.roundHistory, cur.clients, cur.gameOver)
   }
@@ -852,6 +888,8 @@ export default function App() {
           )}
           {state.retrievedJokerId && <span className="pill" style={{ background: "#22c55e", color: "#fff" }}>Joker à réutiliser</span>}
           <div style={{ flex: 1 }} />
+          <button className="btn ghost small" title="Trier" onClick={() => setSortMode(sortMode === "suit" ? "rank" : "suit")}>{sortMode === "suit" ? "♠♥♦♣" : "A→R"}</button>
+          <button className="btn ghost small" disabled={historyLen === 0 || mode === "client"} onClick={undo} title="Annuler la dernière action">↶ Annuler{historyLen > 0 ? ` (${historyLen})` : ""}</button>
           <button className="btn small" disabled={!canAct || !analysis.valid} onClick={doPose}>Poser</button>
           <button className="btn small danger" disabled={!canAct || selectedCards.length !== 1} onClick={() => setConfirmDiscard(selectedCards[0].id)}>Défausser</button>
           <button className="btn ghost small" disabled={selected.size === 0} onClick={() => setSelected(new Set())}>Vider</button>
@@ -861,7 +899,7 @@ export default function App() {
       <div className="hand">
         <div className="hand-scroll">
           {hand.length === 0 && <div style={{ opacity: .7, alignSelf: "center" }}>Main vide.</div>}
-          {sortHand(visibleHand).map(c => (
+          {sortHand(visibleHand, sortMode).map(c => (
             <CardView key={c.id} card={c} selected={selected.has(c.id)}
               extraClass={c.id === state.retrievedJokerId ? "retr" : null}
               onClick={() => toggleSel(c.id)} />
